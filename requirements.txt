@@ -1,0 +1,14 @@
+# m2c_pipeline dependencies
+# Install via: pip install -r requirements.txt
+
+# Gemini text translation + native image generation on Vertex AI backend
+google-genai>=1.0.0
+
+# PNG processing and metadata writing
+Pillow>=10.0.0
+
+# Retry with exponential backoff
+tenacity>=8.2.0
+
+# Progress bar for concurrent block processing
+tqdm>=4.66.0
