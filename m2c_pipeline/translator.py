@@ -2,24 +2,26 @@
 Mermaid -> Chiikawa prompt translator using google-genai SDK (Vertex AI backend).
 """
 
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 
 from tenacity import (
     retry,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential,
 )
 
-from .config import VertexConfig
+from .config import VALID_ASPECT_RATIOS, VertexConfig
 from .extractor import MermaidBlock
 from .templates.base import StyleTemplate
 
 logger = logging.getLogger(__name__)
 
 # Supported aspect ratios for Gemini image generation
-_VALID_RATIOS = {"1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"}
+_VALID_RATIOS = set(VALID_ASPECT_RATIOS)
 _DEFAULT_RATIO = "1:1"
 
 
@@ -91,7 +93,7 @@ class MermaidTranslator:
     def __init__(self, config: VertexConfig, template: StyleTemplate) -> None:
         self._config = config
         self._template = template
-        self._client = self._init_client()
+        self._client = None
 
     def _init_client(self):
         """Initialize google-genai client with Vertex AI backend."""
@@ -110,12 +112,44 @@ class MermaidTranslator:
                 "Run: pip install google-genai"
             ) from exc
 
+    def _get_client(self):
+        if self._client is None:
+            self._client = self._init_client()
+        return self._client
+
+    def _build_fallback_prompt(
+        self,
+        block: MermaidBlock,
+        *,
+        aspect_ratio: str | None = None,
+    ) -> ImagePrompt:
+        ratio = aspect_ratio or self._config.aspect_ratio
+        fallback = self._template.build_prompt(
+            topic=f"{block.diagram_type} diagram",
+            mermaid_source=block.source,
+            aspect_ratio=ratio,
+        )
+        return ImagePrompt(
+            prompt_text=fallback,
+            aspect_ratio=ratio,
+            source_block=block,
+        )
+
     def translate(self, block: MermaidBlock) -> ImagePrompt:
         """Translate one MermaidBlock into an ImagePrompt.
 
         Retries automatically on rate-limit and server errors.
         Falls back to a minimal prompt if Gemini response cannot be parsed.
         """
+        if self._config.translation_mode == "fallback":
+            logger.info(
+                "Using local fallback translation for block %d (type=%s, line=%d)",
+                block.index,
+                block.diagram_type,
+                block.line_number,
+            )
+            return self._build_fallback_prompt(block)
+
         logger.info(
             "Translating block %d (type=%s, line=%d)",
             block.index,
@@ -126,6 +160,8 @@ class MermaidTranslator:
 
         try:
             response_text = self._call_gemini(user_message)
+        except ImportError:
+            raise
         except Exception as exc:
             logger.warning(
                 "Gemini call failed for block %d after retries: %s. "
@@ -133,16 +169,7 @@ class MermaidTranslator:
                 block.index,
                 exc,
             )
-            fallback = self._template.build_prompt(
-                topic=f"{block.diagram_type} diagram",
-                mermaid_source=block.source,
-                aspect_ratio=self._config.aspect_ratio,
-            )
-            return ImagePrompt(
-                prompt_text=fallback,
-                aspect_ratio=self._config.aspect_ratio,
-                source_block=block,
-            )
+            return self._build_fallback_prompt(block)
 
         return self._parse_response(response_text, block)
 
@@ -155,7 +182,7 @@ class MermaidTranslator:
         )
 
     @retry(
-        retry=retry_if_exception_type(Exception),
+        retry=retry_if_exception(lambda exc: not isinstance(exc, ImportError)),
         stop=stop_after_attempt(5),
         wait=wait_exponential(multiplier=1, min=2, max=60),
         before_sleep=_before_sleep_quota,
@@ -165,7 +192,7 @@ class MermaidTranslator:
         """Raw Gemini API call with tenacity retry."""
         from google.genai import types
 
-        response = self._client.models.generate_content(
+        response = self._get_client().models.generate_content(
             model=self._config.gemini_model,
             contents=user_message,
             config=types.GenerateContentConfig(
@@ -204,11 +231,10 @@ class MermaidTranslator:
                 "Gemini returned empty prompt for block %d; using fallback.",
                 block.index,
             )
-            prompt_text = self._template.build_prompt(
-                topic=f"{block.diagram_type} diagram",
-                mermaid_source=block.source,
+            prompt_text = self._build_fallback_prompt(
+                block,
                 aspect_ratio=aspect_ratio,
-            )
+            ).prompt_text
 
         return ImagePrompt(
             prompt_text=prompt_text,

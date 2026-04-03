@@ -7,7 +7,7 @@ import logging
 
 from tenacity import (
     retry,
-    retry_if_exception_type,
+    retry_if_exception,
     stop_after_attempt,
     wait_exponential,
 )
@@ -23,7 +23,7 @@ class ImagePainter:
 
     def __init__(self, config: VertexConfig) -> None:
         self._config = config
-        self._client = self._init_client()
+        self._client = None
 
     def _init_client(self):
         """Initialize google-genai client with Vertex AI backend."""
@@ -41,6 +41,11 @@ class ImagePainter:
                 "google-genai package not found. "
                 "Run: pip install google-genai"
             ) from exc
+
+    def _get_client(self):
+        if self._client is None:
+            self._client = self._init_client()
+        return self._client
 
     def paint(self, image_prompt: ImagePrompt) -> bytes:
         """Generate an image and return raw PNG bytes.
@@ -73,7 +78,7 @@ class ImagePainter:
         )
 
     @retry(
-        retry=retry_if_exception_type(Exception),
+        retry=retry_if_exception(lambda exc: not isinstance(exc, ImportError)),
         stop=stop_after_attempt(5),
         wait=wait_exponential(multiplier=1, min=2, max=60),
         before_sleep=_before_sleep_quota,
@@ -83,7 +88,7 @@ class ImagePainter:
         """Gemini image generation API call with tenacity retry on 429/500."""
         from google.genai import types
 
-        response = self._client.models.generate_content(
+        response = self._get_client().models.generate_content(
             model=self._config.image_model,
             contents=prompt_text,
             config=types.GenerateContentConfig(

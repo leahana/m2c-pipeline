@@ -24,7 +24,8 @@ python -m m2c_pipeline path/to/input.md
 - 🌸 **Chiikawa 风格** — Gemini 文本模型理解图结构，生成可爱教育插画提示词
 - 🖼️ **Vertex AI 生图** — 通过 `google-genai` SDK 调用 Gemini 图片模型
 - ⚡ **并发生成** — `ThreadPoolExecutor` 并发，`tqdm` 进度条实时反馈
-- 🔁 **自动重试** — `tenacity` 指数退避，Translate 和 Paint 阶段均有 fallback
+- 🔁 **自动重试** — `tenacity` 指数退避，Vertex 调用失败时 Translate 和 Paint 阶段都有保护
+- 🧪 **离线 dry-run** — `fallback + --dry-run` 可在无云凭据、无项目 ID 的环境里验证提词流程
 - 💾 **元数据内嵌** — PNG 文件内嵌 `mermaid_source` / `image_prompt` / `generated_at` 等字段
 - 🛡️ **纯 Vertex AI** — 只走 ADC 认证，不依赖 Google AI Studio API key
 
@@ -43,11 +44,11 @@ pip install -r requirements.txt
 cp .env.example .env
 # 编辑 .env，填入 M2C_PROJECT_ID 和 GOOGLE_APPLICATION_CREDENTIALS
 
-# 3. 试跑（不调用图片模型）
-python -m m2c_pipeline tests/fixtures/test_input.md --dry-run
+# 3. 离线试跑（不调用云端翻译或图片模型）
+python -m m2c_pipeline tests/fixtures/test_input.md --dry-run --translation-mode fallback
 
 # 4. 正式生成
-python -m m2c_pipeline tests/fixtures/test_input.md --output-dir ./output
+python -m m2c_pipeline tests/fixtures/test_input.md --translation-mode vertex --output-dir ./output
 ```
 
 ---
@@ -162,16 +163,16 @@ gcloud auth application-default set-quota-project YOUR_PROJECT_ID
 
 ## 🚀 使用方式
 
-**只生成提示词，不调用图片模型（推荐先跑一次）：**
+**离线 dry-run（不调用云端翻译或图片模型，推荐先跑一次）：**
 
 ```bash
-python -m m2c_pipeline tests/fixtures/test_input.md --dry-run
+python -m m2c_pipeline tests/fixtures/test_input.md --dry-run --translation-mode fallback
 ```
 
 **生成图片：**
 
 ```bash
-python -m m2c_pipeline tests/fixtures/test_input.md --output-dir ./output
+python -m m2c_pipeline tests/fixtures/test_input.md --translation-mode vertex --output-dir ./output
 ```
 
 **常用参数：**
@@ -179,10 +180,12 @@ python -m m2c_pipeline tests/fixtures/test_input.md --output-dir ./output
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
 | `--template` | 风格模板 | `chiikawa` |
+| `--translation-mode` | 翻译模式 | `vertex` |
 | `--aspect-ratio` | 图片宽高比 | `1:1` |
 | `--output-dir` | 输出目录 | `./output` |
 | `--max-workers` | 并发数 | `2` |
 | `--log-level` | 日志级别 | `INFO` |
+| `--version` | 打印版本号并退出 | — |
 
 ---
 
@@ -197,6 +200,7 @@ python -m m2c_pipeline tests/fixtures/test_input.md --output-dir ./output
 | `M2C_ASPECT_RATIO` | | `1:1` | 图片宽高比 |
 | `M2C_OUTPUT_DIR` | | `./output` | 输出目录 |
 | `M2C_TEMPLATE` | | `chiikawa` | 风格模板 |
+| `M2C_TRANSLATION_MODE` | | `vertex` | 翻译模式，`fallback` 仅用于 `--dry-run` |
 | `M2C_MAX_WORKERS` | | `2` | 并发数 |
 | `M2C_REQUEST_TIMEOUT` | | `600` | 请求超时（秒） |
 | `M2C_LOG_LEVEL` | | `INFO` | 日志级别 |
@@ -234,9 +238,19 @@ diagram_type     图类型（graph / sequenceDiagram / ...）
 
 ```bash
 python -m unittest \
+  tests.test_ci_package \
   tests.test_m2c_config \
+  tests.test_m2c_cli \
   tests.test_m2c_extractor \
-  tests.test_m2c_storage
+  tests.test_m2c_pipeline \
+  tests.test_m2c_storage \
+  tests.test_m2c_translator
+```
+
+离线 smoke test（无需 GCP 凭据）：
+
+```bash
+python -m m2c_pipeline tests/fixtures/test_input.md --dry-run --translation-mode fallback
 ```
 
 手工集成 smoke test（需要真实 Vertex AI 凭据）：
@@ -255,6 +269,7 @@ python tests/smoke_test.py --input tests/fixtures/test_input.md --with-image
 - 🖼️ 生成图片、失败日志、测试输出均属本地产物，不提交
 - 📋 共享配置只共享 `.env.example`
 - ⛔ 明确禁止 `GOOGLE_API_KEY`、`GEMINI_API_KEY` 或 `genai.Client(api_key=...)`
+- 🏷️ `v*` tag 治理基线是“允许首次创建，禁止后续 update 和 deletion”；不要为该 ruleset 添加 `creation`，否则在无 bypass 下会阻断正常 release tag 创建
 
 ---
 

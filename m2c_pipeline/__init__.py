@@ -9,8 +9,10 @@ from .config import VertexConfig
 from .extractor import MermaidBlock, MermaidExtractor
 from .pipeline import M2CPipeline
 from .translator import ImagePrompt, MermaidTranslator
+from .version import __version__
 
 __all__ = [
+    "__version__",
     "VertexConfig",
     "MermaidBlock",
     "MermaidExtractor",

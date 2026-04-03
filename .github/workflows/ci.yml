@@ -1,0 +1,62 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  policy-pr-head:
+    name: policy-pr-head
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - run: python3 scripts/ci/check_pr_head.py
+
+  skill-spec:
+    name: skill-spec
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - run: python3 scripts/ci/check_skill_spec.py
+
+  repo-policy:
+    name: repo-policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - run: python3 scripts/ci/check_repo_policy.py
+
+  unit-tests:
+    name: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - run: python3 -m pip install -r requirements.txt
+      - run: python3 -m unittest discover -s tests -p "test_*.py"
+
+  offline-smoke:
+    name: offline-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - run: python3 -m pip install -r requirements.txt
+      - run: python3 -m m2c_pipeline tests/fixtures/test_input.md --dry-run --translation-mode fallback
+
+  package-dryrun:
+    name: package-dryrun
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - run: python3 scripts/ci/package_generic.py --output-dir dist
+
+  required-job-contract:
+    name: required-job-contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - run: python3 scripts/ci/check_required_job_contract.py

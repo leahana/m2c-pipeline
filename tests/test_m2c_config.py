@@ -17,6 +17,7 @@ class VertexConfigTests(unittest.TestCase):
             "M2C_ASPECT_RATIO": "16:9",
             "M2C_OUTPUT_DIR": "./custom-output",
             "M2C_TEMPLATE": "chiikawa",
+            "M2C_TRANSLATION_MODE": "vertex",
             "M2C_MAX_WORKERS": "3",
             "M2C_REQUEST_TIMEOUT": "120",
             "M2C_MAX_RETRIES": "4",
@@ -36,6 +37,7 @@ class VertexConfigTests(unittest.TestCase):
         self.assertEqual(config.request_timeout, 120)
         self.assertEqual(config.max_retries, 4)
         self.assertEqual(config.log_level, "DEBUG")
+        self.assertEqual(config.translation_mode, "vertex")
 
     def test_apply_overrides_updates_non_none_values(self) -> None:
         config = VertexConfig(project_id="demo-project", aspect_ratio="1:1")
@@ -62,6 +64,17 @@ class VertexConfigTests(unittest.TestCase):
         config = VertexConfig(project_id="demo-project", aspect_ratio="4:3")
 
         config.validate()
+
+    def test_validate_fallback_requires_dry_run(self) -> None:
+        config = VertexConfig(project_id="", translation_mode="fallback")
+
+        with self.assertRaises(ValueError):
+            config.validate()
+
+    def test_validate_fallback_allows_missing_project_for_dry_run(self) -> None:
+        config = VertexConfig(project_id="", translation_mode="fallback")
+
+        config.validate(dry_run=True)
 
     def test_from_env_loads_dotenv_from_cwd(self) -> None:
         original_cwd = Path.cwd()

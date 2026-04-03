@@ -20,10 +20,12 @@ vertex-adc*.json
 
 output/
 tests/output/
+dist/
 
 .idea/
 .vscode/
 *.iml
+*.sha256
 
 .DS_Store
 

@@ -1,0 +1,179 @@
+"""Build and verify the generic Anthropic skill package."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import os
+import shutil
+import sys
+import tempfile
+import zipfile
+from pathlib import Path
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from scripts.ci.common import (
+    REPO_ROOT,
+    load_allowlist,
+    load_version,
+    relative_posix,
+    resolve_within_repo,
+)
+
+
+class PackagingError(RuntimeError):
+    """Raised when packaging validation fails."""
+
+
+def package_basename(version: str | None = None) -> str:
+    resolved_version = version or load_version()
+    return f"m2c-pipeline-generic-v{resolved_version}"
+
+
+def _collect_recursive(base_dir: Path, repo_root: Path) -> list[Path]:
+    if not base_dir.exists():
+        raise PackagingError(f"Allowlisted path does not exist: {base_dir}")
+
+    collected: list[Path] = []
+    for root, dirnames, filenames in os.walk(base_dir, followlinks=False):
+        root_path = Path(root)
+        for dirname in list(dirnames):
+            dir_path = root_path / dirname
+            if dir_path.is_symlink():
+                raise PackagingError(f"Symlinked directories are not allowed: {dir_path}")
+        for filename in filenames:
+            file_path = root_path / filename
+            if file_path.is_symlink():
+                raise PackagingError(f"Symlinked files are not allowed: {file_path}")
+            resolve_within_repo(file_path, repo_root)
+            collected.append(file_path)
+    return collected
+
+
+def collect_package_files(
+    repo_root: Path = REPO_ROOT,
+    allowlist: list[str] | None = None,
+) -> list[Path]:
+    patterns = allowlist or load_allowlist()
+    collected: dict[str, Path] = {}
+    for pattern in patterns:
+        if pattern.endswith("/**"):
+            base_dir = repo_root / pattern[:-3]
+            candidates = _collect_recursive(base_dir, repo_root)
+        else:
+            path = repo_root / pattern
+            if not path.exists():
+                raise PackagingError(f"Allowlisted path does not exist: {path}")
+            if path.is_symlink():
+                raise PackagingError(f"Symlinked paths are not allowed: {path}")
+            if path.is_dir():
+                raise PackagingError(f"Directory allowlist entries must use /**: {pattern}")
+            resolve_within_repo(path, repo_root)
+            candidates = [path]
+
+        for candidate in candidates:
+            rel_path = relative_posix(candidate, repo_root)
+            collected[rel_path] = candidate
+
+    return [collected[key] for key in sorted(collected)]
+
+
+def stage_package_files(
+    repo_root: Path,
+    package_root: Path,
+    source_files: list[Path],
+) -> list[Path]:
+    staged_paths: list[Path] = []
+    for source_path in source_files:
+        rel_path = relative_posix(source_path, repo_root)
+        destination = package_root / rel_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_path, destination)
+        staged_paths.append(destination)
+    return staged_paths
+
+
+def _validate_staged_tree(package_root: Path, expected_rel_paths: list[str]) -> None:
+    discovered: list[str] = []
+    for path in sorted(package_root.rglob("*")):
+        if path.is_dir():
+            continue
+        rel_path = path.relative_to(package_root).as_posix()
+        if rel_path != ".env.example" and any(part.startswith(".") for part in Path(rel_path).parts):
+            raise PackagingError(f"Hidden staged file is not allowed: {rel_path}")
+        if rel_path.startswith("/") or ".." in Path(rel_path).parts:
+            raise PackagingError(f"Unsafe staged path detected: {rel_path}")
+        discovered.append(rel_path)
+
+    if discovered != expected_rel_paths:
+        raise PackagingError(
+            f"Staged package contents mismatch. Expected {expected_rel_paths!r}, got {discovered!r}"
+        )
+
+
+def build_package(
+    output_dir: Path,
+    repo_root: Path = REPO_ROOT,
+    allowlist: list[str] | None = None,
+    version: str | None = None,
+) -> tuple[Path, Path]:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    basename = package_basename(version)
+    archive_path = output_dir / f"{basename}.zip"
+    checksum_path = output_dir / f"{basename}.zip.sha256"
+
+    source_files = collect_package_files(repo_root, allowlist)
+    expected_rel_paths = [relative_posix(path, repo_root) for path in source_files]
+
+    with tempfile.TemporaryDirectory(prefix="m2c-package-") as temp_dir:
+        temp_root = Path(temp_dir)
+        package_root = temp_root / basename
+        package_root.mkdir(parents=True, exist_ok=True)
+        stage_package_files(repo_root, package_root, source_files)
+        _validate_staged_tree(package_root, expected_rel_paths)
+
+        with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            seen_members: set[str] = set()
+            for rel_path in expected_rel_paths:
+                member_name = f"{basename}/{rel_path}"
+                if member_name in seen_members:
+                    raise PackagingError(f"Duplicate archive member detected: {member_name}")
+                seen_members.add(member_name)
+                archive.write(package_root / rel_path, arcname=member_name)
+
+    verify_archive(archive_path, expected_rel_paths, basename)
+
+    digest = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+    checksum_path.write_text(f"{digest}  {archive_path.name}\n", encoding="utf-8")
+    return archive_path, checksum_path
+
+
+def verify_archive(archive_path: Path, expected_rel_paths: list[str], basename: str) -> None:
+    with zipfile.ZipFile(archive_path) as archive:
+        members = sorted(archive.namelist())
+    expected_members = [f"{basename}/{rel_path}" for rel_path in expected_rel_paths]
+    if members != expected_members:
+        raise PackagingError(
+            f"Archive contents mismatch. Expected {expected_members!r}, got {members!r}"
+        )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Build the generic Anthropic skill package.")
+    parser.add_argument(
+        "--output-dir",
+        default="dist",
+        help="Directory where the archive and checksum will be written.",
+    )
+    args = parser.parse_args()
+
+    archive_path, checksum_path = build_package(Path(args.output_dir))
+    print(f"Built archive: {archive_path}")
+    print(f"Wrote checksum: {checksum_path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

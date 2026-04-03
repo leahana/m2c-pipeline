@@ -2,6 +2,8 @@
 M2CPipeline — orchestrates the full Mermaid-to-Chiikawa pipeline.
 """
 
+from __future__ import annotations
+
 import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -25,18 +27,26 @@ class M2CPipeline:
         self._config = config
         self._logger = logging.getLogger(self.__class__.__name__)
 
-        template = get_template(config.template_name)
+        self._template = get_template(config.template_name)
         self._extractor = MermaidExtractor()
-        self._translator = MermaidTranslator(config, template)
-        self._painter = ImagePainter(config)
-        self._storage = ImageStorage(config)
+        self._translator: MermaidTranslator | None = None
+        self._painter: ImagePainter | None = None
+        self._storage: ImageStorage | None = None
 
-        preview_hint = (
-            " [preview model — check for GA release and remove '-preview' suffix when available]"
-            if "preview" in config.image_model.lower()
-            else ""
-        )
-        self._logger.info("image_model: %s%s", config.image_model, preview_hint)
+    def _get_translator(self) -> MermaidTranslator:
+        if self._translator is None:
+            self._translator = MermaidTranslator(self._config, self._template)
+        return self._translator
+
+    def _get_painter(self) -> ImagePainter:
+        if self._painter is None:
+            self._painter = ImagePainter(self._config)
+        return self._painter
+
+    def _get_storage(self) -> ImageStorage:
+        if self._storage is None:
+            self._storage = ImageStorage(self._config)
+        return self._storage
 
     def run(self, input_path: str, dry_run: bool = False) -> list[Path]:
         """Execute the full pipeline. Returns paths of all saved images.
@@ -50,8 +60,12 @@ class M2CPipeline:
         """
         self._logger.info("=== m2c_pipeline START ===")
         self._logger.info(
-            "Input: %s | Template: %s | Dry-run: %s | max_workers: %d",
-            input_path, self._config.template_name, dry_run, self._config.max_workers,
+            "Input: %s | Template: %s | Dry-run: %s | mode: %s | max_workers: %d",
+            input_path,
+            self._config.template_name,
+            dry_run,
+            self._config.translation_mode,
+            self._config.max_workers,
         )
 
         # Step 1: Extract (always serial, instant)
@@ -61,6 +75,17 @@ class M2CPipeline:
             return []
         self._logger.info("Extracted %d mermaid block(s)", len(blocks))
 
+        translator = self._get_translator()
+        painter = None if dry_run else self._get_painter()
+        storage = None if dry_run else self._get_storage()
+        if not dry_run:
+            preview_hint = (
+                " [preview model — check for GA release and remove '-preview' suffix when available]"
+                if "preview" in self._config.image_model.lower()
+                else ""
+            )
+            self._logger.info("image_model: %s%s", self._config.image_model, preview_hint)
+
         saved_paths: list[Path] = []
         lock = threading.Lock()
         semaphore = threading.Semaphore(self._config.max_workers)
@@ -69,7 +94,7 @@ class M2CPipeline:
             """Translate → Paint → Store one block under semaphore guard."""
             with semaphore:
                 # Step 2: Translate
-                image_prompt = self._translator.translate(block)
+                image_prompt = translator.translate(block)
 
                 if dry_run:
                     self._logger.info(
@@ -82,16 +107,18 @@ class M2CPipeline:
 
                 # Step 3: Paint
                 try:
-                    image_bytes = self._painter.paint(image_prompt)
+                    image_bytes = painter.paint(image_prompt)
+                except ImportError:
+                    raise
                 except Exception as exc:
                     self._logger.error(
                         "Image generation failed for block %d: %s", block.index, exc
                     )
-                    self._storage.save_failed_prompt(block, image_prompt.prompt_text)
+                    storage.save_failed_prompt(block, image_prompt.prompt_text)
                     return None
 
                 # Step 4: Store
-                return self._storage.save(image_bytes, block, image_prompt.prompt_text)
+                return storage.save(image_bytes, block, image_prompt.prompt_text)
 
         # Step 2-4: Process blocks concurrently with tqdm progress bar
         bar_fmt = "{l_bar}{bar}| {n_fmt}/{total_fmt} blocks [{elapsed}<{remaining}]"
@@ -112,6 +139,8 @@ class M2CPipeline:
                         block = futures[future]
                         try:
                             path = future.result()
+                        except ImportError:
+                            raise
                         except Exception as exc:
                             self._logger.error(
                                 "Block %d unhandled error: %s", block.index, exc
