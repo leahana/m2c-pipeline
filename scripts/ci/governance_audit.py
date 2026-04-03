@@ -113,11 +113,14 @@ def validate_tag_ruleset_payload(ruleset: dict, tag_contract: dict) -> None:
 
 
 def audit_tag_ruleset(api: GitHubApi, owner: str, repo: str, contract: dict) -> None:
-    rulesets = api.get(f"/repos/{owner}/{repo}/rulesets?per_page=100")
-    tag_contract = contract["tag_ruleset"]
-    matches = [
-        ruleset for ruleset in find_matching_tag_rulesets(rulesets, tag_contract)
+    rulesets_summary = api.get(f"/repos/{owner}/{repo}/rulesets?per_page=100")
+    # List endpoint omits conditions/rules; fetch each ruleset individually.
+    rulesets = [
+        api.get(f"/repos/{owner}/{repo}/rulesets/{rs['id']}")
+        for rs in rulesets_summary
     ]
+    tag_contract = contract["tag_ruleset"]
+    matches = find_matching_tag_rulesets(rulesets, tag_contract)
     if not matches:
         raise GovernanceAuditError(
             f"No matching active tag ruleset found for include patterns {tag_contract['ref_name_include']!r}."
