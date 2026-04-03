@@ -1,0 +1,31 @@
+name: governance-audit
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  branch-protection-audit:
+    name: branch-protection-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - run: python3 scripts/ci/governance_audit.py --mode branch-protection
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_ADMIN_AUDIT_TOKEN }}
+
+  tag-ruleset-audit:
+    name: tag-ruleset-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - run: python3 scripts/ci/governance_audit.py --mode tag-ruleset
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_ADMIN_AUDIT_TOKEN }}

@@ -9,6 +9,20 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Tuple
 
+VALID_ASPECT_RATIOS = (
+    "1:1",
+    "2:3",
+    "3:2",
+    "3:4",
+    "4:3",
+    "4:5",
+    "5:4",
+    "9:16",
+    "16:9",
+    "21:9",
+)
+VALID_TRANSLATION_MODES = ("vertex", "fallback")
+
 
 def _parse_dotenv_line(line: str) -> Optional[Tuple[str, str]]:
     """Parse a minimal .env line.
@@ -106,6 +120,7 @@ class VertexConfig:
 
     # === Logging ===
     log_level: str = "INFO"
+    translation_mode: str = "vertex"
 
     @classmethod
     def from_env(cls) -> "VertexConfig":
@@ -125,6 +140,7 @@ class VertexConfig:
             retry_min_wait=int(os.environ.get("M2C_RETRY_MIN_WAIT", "2")),
             retry_max_wait=int(os.environ.get("M2C_RETRY_MAX_WAIT", "60")),
             log_level=os.environ.get("M2C_LOG_LEVEL", "INFO"),
+            translation_mode=os.environ.get("M2C_TRANSLATION_MODE", "vertex"),
         )
 
     def apply_overrides(self, **kwargs) -> "VertexConfig":
@@ -136,20 +152,31 @@ class VertexConfig:
                 current[k] = v
         return VertexConfig(**current)
 
-    def validate(self) -> None:
-        """Raise ValueError for missing required configuration."""
+    def validate(self, *, dry_run: bool = False) -> None:
+        """Raise ValueError for invalid runtime configuration."""
+        if self.aspect_ratio not in VALID_ASPECT_RATIOS:
+            raise ValueError(
+                f"Invalid aspect_ratio '{self.aspect_ratio}'. "
+                f"Must be one of: {sorted(VALID_ASPECT_RATIOS)}"
+            )
+        if self.translation_mode not in VALID_TRANSLATION_MODES:
+            raise ValueError(
+                f"Invalid translation_mode '{self.translation_mode}'. "
+                f"Must be one of: {sorted(VALID_TRANSLATION_MODES)}"
+            )
+        if self.translation_mode == "fallback":
+            if not dry_run:
+                raise ValueError(
+                    "Fallback translation mode only supports --dry-run. "
+                    "Use --translation-mode vertex for image generation."
+                )
+            return
         if not self.project_id:
             raise ValueError(
-                "M2C_PROJECT_ID is required. "
+                "M2C_PROJECT_ID is required for vertex translation mode. "
                 "Set it in your environment or .env file."
             )
         if self.project_id.startswith("your-") or len(self.project_id) < 4:
             raise ValueError(
                 f"检测到异常的 Project ID: '{self.project_id}'，请检查 .env 文件"
-            )
-        valid_ratios = {"1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"}
-        if self.aspect_ratio not in valid_ratios:
-            raise ValueError(
-                f"Invalid aspect_ratio '{self.aspect_ratio}'. "
-                f"Must be one of: {sorted(valid_ratios)}"
             )

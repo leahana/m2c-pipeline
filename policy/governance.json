@@ -1,0 +1,24 @@
+{
+  "default_branch": "main",
+  "required_checks": [
+    "policy-pr-head",
+    "skill-spec",
+    "repo-policy",
+    "unit-tests",
+    "offline-smoke",
+    "package-dryrun",
+    "required-job-contract"
+  ],
+  "release_tag_regex": "^v\\d+\\.\\d+\\.\\d+$",
+  "tag_ruleset": {
+    "target": "tag",
+    "enforcement": "active",
+    "ref_name_include": [
+      "refs/tags/v*"
+    ],
+    "required_tag_rules": [
+      "update",
+      "deletion"
+    ]
+  }
+}

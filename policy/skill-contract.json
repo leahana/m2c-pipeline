@@ -1,0 +1,18 @@
+{
+  "title": "# m2c-pipeline",
+  "required_sections": [
+    "Overview",
+    "Prerequisites",
+    "Inputs",
+    "Outputs",
+    "Usage",
+    "Offline Dry Run",
+    "Constraints"
+  ],
+  "max_non_empty_lines": 350,
+  "banned_tokens": [
+    "openai.yaml",
+    "openai.yml",
+    "codex"
+  ]
+}

@@ -1,0 +1,6 @@
+SKILL.md
+README.md
+LICENSE
+.env.example
+requirements.txt
+m2c_pipeline/**
