@@ -81,6 +81,7 @@ A character MAY appear in multiple sections if the diagram logic requires it (e.
 
 ## Aspect Ratio Selection
 - Simple linear flow (≤5 nodes)  → recommend "1:1"
+- Standard content / blog illustration → recommend "4:3"
 - Wide horizontal flowchart / roadmap → recommend "16:9"
 - Tall vertical or stacked layout → recommend "9:16"
 State your recommendation on the FIRST line of your response as: ASPECT_RATIO: <value>
@@ -89,7 +90,7 @@ State your recommendation on the FIRST line of your response as: ASPECT_RATIO: <
 After the ASPECT_RATIO line, output the filled-in Chiikawa template EXACTLY as shown below.
 Do NOT add any commentary, markdown fences, or extra text outside the template.
 
-ASPECT_RATIO: <1:1 | 9:16 | 16:9>
+ASPECT_RATIO: <1:1 | 4:3 | 16:9 | 9:16>
 
 """ + _TEMPLATE_SKELETON + """
 
