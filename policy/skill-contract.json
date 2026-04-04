@@ -1,15 +1,31 @@
 {
-  "title": "# m2c-pipeline",
-  "required_sections": [
-    "Overview",
-    "Prerequisites",
-    "Inputs",
-    "Outputs",
-    "Usage",
-    "Offline Dry Run",
-    "Constraints"
+  "expected_name": "m2c-pipeline",
+  "required_title": "# m2c-pipeline",
+  "required_frontmatter_fields": [
+    "name",
+    "description"
   ],
-  "max_non_empty_lines": 350,
+  "required_sections": [
+    "When to Use",
+    "Workflow",
+    "Guardrails",
+    "References"
+  ],
+  "max_non_empty_lines": 220,
+  "description_required_keywords": [
+    "Mermaid",
+    "Markdown",
+    "Vertex AI"
+  ],
+  "description_required_phrases": [
+    "Use when",
+    "Do not use when"
+  ],
+  "description_disallowed_fragments": [
+    "general-purpose",
+    "general purpose",
+    "general tasks"
+  ],
   "banned_tokens": [
     "openai.yaml",
     "openai.yml",

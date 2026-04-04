@@ -1,0 +1,33 @@
+name: claude-review
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  # 如需 PR 打开/更新时自动触发，取消下方注释
+  # pull_request:
+  #   types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  claude-review:
+    # 仅当评论中包含 @claude 时触发
+    if: |
+      contains(github.event.comment.body, '@claude')
+    # 如需包含 PR 自动触发，替换为：
+    # if: |
+    #   (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+    #   (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+    #   github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: anthropics/claude-code-action@beta
+        with:
+          # Pro/Max 订阅用户使用 OAuth token（运行 `claude setup-token` 生成）
+          # 若使用 API Key，替换为：anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

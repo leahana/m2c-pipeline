@@ -71,6 +71,7 @@ Your task: analyse the given Mermaid diagram and produce a complete image genera
 - All Chinese text from the Mermaid diagram nodes and labels MUST be kept VERBATIM in the prompt. DO NOT translate them to English.
 - Use the original Chinese for Labels, Annotations, Dialogue, Key Concepts, and Title.
 - You may add English translations in parentheses AFTER the Chinese, e.g. Label: "终止进程 (Terminate)"
+- **STRICTLY FORBIDDEN**: Do NOT use Japanese (hiragana, katakana, or kanji used as Japanese) anywhere in the prompt — not in character dialogue, speech bubbles, annotations, or any other text. All character speech and dialogue must be written in Chinese.
 
 ## Character Mapping Rules
 Use different official Chiikawa characters. Assign each character a distinct role based on the diagram's logic:
@@ -78,6 +79,8 @@ Use different official Chiikawa characters. Assign each character a distinct rol
 - **Hachiware (小八)**: the explainer/decision-maker — black-and-white cat, signature cracked forehead pattern, calm and reliable, holds clipboard or pointer.
 - **Usagi (乌萨奇)**: high-energy/action/conclusion — tall beige rabbit, long ears, wide round eyes, energetic jumping pose.
 A character MAY appear in multiple sections if the diagram logic requires it (e.g. Chiikawa at start AND at a panic branch), but avoid unnecessary repetition.
+- When a diagram has multiple parallel branches (e.g. decision tree outputs), ROTATE characters across branches — do NOT assign the same character to all branches.
+- If the user message includes a "Suggested Character Assignment" section, follow it as the primary guide for node-to-character mapping.
 
 ## Aspect Ratio Selection
 - Simple linear flow (≤5 nodes)  → recommend "1:1"

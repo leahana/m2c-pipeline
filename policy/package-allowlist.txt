@@ -3,4 +3,6 @@ README.md
 LICENSE
 .env.example
 requirements.txt
+references/**
+evals/**
 m2c_pipeline/**
