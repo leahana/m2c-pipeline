@@ -17,7 +17,7 @@ REQUIRED_WORKFLOWS = {
     "ci.yml",
     "claude-review.yml",
     "governance-audit.yml",
-    "release-generic.yml",
+    "release-please.yml",
 }
 # First-party Anthropic actions are exempt from SHA-pin enforcement.
 UNPINNED_ACTION_ALLOWLIST = {
@@ -25,6 +25,7 @@ UNPINNED_ACTION_ALLOWLIST = {
 }
 WORKFLOW_USE_PATTERN = re.compile(r"^\s*uses:\s*([^\s@]+)@([^\s#]+)\s*$", re.MULTILINE)
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+WRITE_PERMISSION_PATTERN = re.compile(r"(?m)^\s+(contents|issues|pull-requests):\s+write$")
 DENIED_JSON_PATTERNS = (
     "application_default_credentials.json",
     "service-account",
@@ -32,6 +33,17 @@ DENIED_JSON_PATTERNS = (
     "gcp-key",
     "gcp-credentials",
     "vertex-adc",
+)
+RELEASE_PLEASE_PERMISSION_BLOCK = re.compile(
+    r"(?ms)^  release-please:\n.*?^    permissions:\n"
+    r"      contents: write\n"
+    r"      issues: write\n"
+    r"      pull-requests: write$"
+)
+CLAUDE_REVIEW_PERMISSION_BLOCK = re.compile(
+    r"(?ms)^  claude-review:\n.*?^    permissions:\n"
+    r"      issues: write\n"
+    r"      pull-requests: write$"
 )
 
 
@@ -94,19 +106,27 @@ def _validate_workflows() -> None:
         if workflow_path.name == "ci.yml" and re.search(r"(?m)^\s+paths(-ignore)?:", text):
             raise ValueError("ci.yml must not use paths or paths-ignore filters.")
 
-        write_count = len(re.findall(r"(?m)^\s+contents:\s+write$", text))
-        if workflow_path.name == "release-generic.yml":
-            if write_count != 1:
-                raise ValueError("release-generic.yml must grant contents: write exactly once.")
-            if not re.search(
-                r"(?ms)^  build-and-release:\n.*?^    permissions:\n      contents: write$",
-                text,
-            ):
+        write_permissions = WRITE_PERMISSION_PATTERN.findall(text)
+        if workflow_path.name == "release-please.yml":
+            if sorted(write_permissions) != ["contents", "issues", "pull-requests"]:
                 raise ValueError(
-                    "release-generic.yml must scope contents: write to the build-and-release job."
+                    "release-please.yml must request contents/issues/pull-requests write exactly once."
                 )
-        elif write_count:
-            raise ValueError(f"{workflow_path.name} must not request contents: write")
+            if not RELEASE_PLEASE_PERMISSION_BLOCK.search(text):
+                raise ValueError(
+                    "release-please.yml must scope write permissions to the release-please job."
+                )
+        elif workflow_path.name == "claude-review.yml":
+            if sorted(write_permissions) != ["issues", "pull-requests"]:
+                raise ValueError(
+                    "claude-review.yml must request issues/pull-requests write exactly once."
+                )
+            if not CLAUDE_REVIEW_PERMISSION_BLOCK.search(text):
+                raise ValueError(
+                    "claude-review.yml must scope write permissions to the claude-review job."
+                )
+        elif write_permissions:
+            raise ValueError(f"{workflow_path.name} must not request write permissions")
 
 
 def validate_repo_policy() -> None:

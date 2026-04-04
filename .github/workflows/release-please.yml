@@ -1,0 +1,57 @@
+name: release-please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-please-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: release-please
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          target-branch: main
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: Checkout released tag
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.release.outputs.tag_name }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      - name: Validate release tag contract
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        run: python3 scripts/ci/check_release_tag.py --tag "${{ steps.release.outputs.tag_name }}"
+
+      - name: Build generic package
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        run: python3 scripts/ci/package_generic.py --output-dir dist
+
+      - name: Upload release assets
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          VERSION="$(python3 -c 'from scripts.ci.common import load_version; print(load_version())')"
+          ZIP_PATH="dist/m2c-pipeline-generic-v${VERSION}.zip"
+          SHA_PATH="${ZIP_PATH}.sha256"
+          gh release upload "${{ steps.release.outputs.tag_name }}" "$ZIP_PATH" "$SHA_PATH" --clobber
+        shell: bash
