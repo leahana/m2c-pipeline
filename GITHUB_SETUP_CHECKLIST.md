@@ -6,24 +6,24 @@
 
 - [ ] 确认当前工作目录仍在仓库根目录
 - [ ] 确认本地分支已存在：`dev`
-- [ ] 确认本地分支已存在：`codex/dev`
+- [ ] 确认本地分支已存在：`dev`
 - [ ] 将当前未提交改动整理到准备推送的工作分支
-- [ ] 切换到 `codex/dev`
+- [ ] 切换到 `dev`
 - [ ] 提交当前改动
-- [ ] 推送 `codex/dev` 到远端
+- [ ] 推送 `dev` 到远端
 
 建议命令：
 
 ```bash
-git switch codex/dev
+git switch dev
 git add .
 git commit -m "ci: harden generic skill release and governance gates"
-git push -u origin codex/dev
+git push -u origin dev
 ```
 
 ## 2. 让 CI 先在 GitHub 上跑出来
 
-- [ ] 在 GitHub 上为 `codex/dev` 创建一个 PR
+- [ ] 在 GitHub 上为 `dev` 创建一个 PR
 - [ ] 等待 `ci` workflow 至少运行一轮
 - [ ] 在 `Actions > ci` 中确认以下 job 名都已经出现：
   - [ ] `policy-pr-head`

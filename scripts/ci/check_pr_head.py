@@ -12,8 +12,21 @@ TITLE_PATTERN = re.compile(
     r"^(feat|fix|docs|refactor|test|chore|ci|build|perf|revert)(\([a-z0-9._/-]+\))?: .+"
 )
 HEAD_PATTERN = re.compile(
-    r"^(feat|fix|docs|refactor|test|chore|ci|build|perf|revert|release|codex)/[a-z0-9._/-]+$"
+    r"^(dev|(feat|fix|docs|refactor|test|chore|ci|build|perf|revert|release)/[a-z0-9._/-]+)$"
 )
+
+
+def validate_pr_naming(title: str, head_ref: str) -> None:
+    if not TITLE_PATTERN.fullmatch(title):
+        raise ValueError(
+            "PR title does not match policy: "
+            "^(feat|fix|docs|refactor|test|chore|ci|build|perf|revert)(\\([a-z0-9._/-]+\\))?: .+"
+        )
+    if not HEAD_PATTERN.fullmatch(head_ref):
+        raise ValueError(
+            "PR head branch does not match policy: "
+            "^(dev|(feat|fix|docs|refactor|test|chore|ci|build|perf|revert|release)/[a-z0-9._/-]+)$"
+        )
 
 
 def main() -> int:
@@ -31,16 +44,10 @@ def main() -> int:
     title = (pull_request.get("title") or "").strip()
     head_ref = ((pull_request.get("head") or {}).get("ref") or "").strip()
 
-    if not TITLE_PATTERN.fullmatch(title):
-        raise SystemExit(
-            "PR title does not match policy: "
-            "^(feat|fix|docs|refactor|test|chore|ci|build|perf|revert)(\\([a-z0-9._/-]+\\))?: .+"
-        )
-    if not HEAD_PATTERN.fullmatch(head_ref):
-        raise SystemExit(
-            "PR head branch does not match policy: "
-            "^(feat|fix|docs|refactor|test|chore|ci|build|perf|revert|release|codex)/[a-z0-9._/-]+$"
-        )
+    try:
+        validate_pr_naming(title, head_ref)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
 
     print(f"PR naming policy passed for title={title!r} head={head_ref!r}")
     return 0
