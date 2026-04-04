@@ -21,7 +21,7 @@ python -m m2c_pipeline path/to/input.md
 ## 🎀 特性亮点
 
 - 🔍 **自动提取** — 正则解析 Markdown，支持多个 Mermaid block 批量处理
-- 🌸 **Chiikawa 风格** — Gemini 文本模型理解图结构，生成可爱教育插画提示词
+- 🌸 **Chiikawa 风格** — Gemini 文本模型理解图结构，生成可爱教育插画提示词；自动按节点类型分配吉伊 / 八千代 / 乌萨奇角色，保证视觉多样性
 - 🖼️ **Vertex AI 生图** — 通过 `google-genai` SDK 调用 Gemini 图片模型
 - ⚡ **并发生成** — `ThreadPoolExecutor` 并发，`tqdm` 进度条实时反馈
 - 🔁 **自动重试** — `tenacity` 指数退避，Vertex 调用失败时 Translate 和 Paint 阶段都有保护
@@ -93,22 +93,26 @@ m2c-pipeline/
 │   ├── test_m2c_storage.py
 │   ├── test_m2c_translator.py
 │   ├── test_ci_package.py
+│   ├── test_skill_spec.py
 │   ├── test_governance_audit.py
 │   ├── test_release_tag.py
 │   └── smoke_test.py
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml                # 单元测试 & 策略校验
+│       ├── claude-review.yml     # PR 评论触发 Claude 代码审查
 │       ├── governance-audit.yml  # 治理审计
 │       └── release-generic.yml   # 通用发布流程
 ├── policy/
 │   ├── governance.json           # 治理规则
 │   ├── package-allowlist.txt     # 依赖白名单
 │   └── skill-contract.json       # skill 合约
+├── references/                   # skill 参考文档（按需加载）
+├── evals/                        # skill 评估场景
 ├── scripts/ci/                   # CI 校验脚本
 ├── .env.example
-├── SKILL.md
-├── GITHUB_SETUP_CHECKLIST.md
+├── AGENTS.md                     # agent 开发指南
+├── SKILL.md                      # Claude Code skill 规范
 ├── LICENSE
 └── requirements.txt
 ```
@@ -258,6 +262,7 @@ diagram_type     图类型（graph / sequenceDiagram / ...）
 ```bash
 python -m unittest \
   tests.test_ci_package \
+  tests.test_skill_spec \
   tests.test_m2c_config \
   tests.test_m2c_cli \
   tests.test_m2c_extractor \
@@ -288,7 +293,6 @@ python tests/smoke_test.py --input tests/fixtures/test_input.md --with-image
 - 🖼️ 生成图片、失败日志、测试输出均属本地产物，不提交
 - 📋 共享配置只共享 `.env.example`
 - ⛔ 明确禁止 `GOOGLE_API_KEY`、`GEMINI_API_KEY` 或 `genai.Client(api_key=...)`
-- 🏷️ `v*` tag 治理基线是“允许首次创建，禁止后续 update 和 deletion”；不要为该 ruleset 添加 `creation`，否则在无 bypass 下会阻断正常 release tag 创建
 
 ---
 
