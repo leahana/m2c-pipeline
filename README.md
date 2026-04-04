@@ -82,14 +82,33 @@ m2c-pipeline/
 │   ├── translator.py     # Gemini 文本翻译
 │   ├── painter.py        # Gemini 图片生成
 │   ├── storage.py        # PNG 保存
+│   ├── version.py        # 版本号
 │   └── templates/        # 风格模板（当前：chiikawa）
 ├── tests/
 │   ├── fixtures/
 │   ├── test_m2c_config.py
+│   ├── test_m2c_cli.py
 │   ├── test_m2c_extractor.py
+│   ├── test_m2c_pipeline.py
 │   ├── test_m2c_storage.py
+│   ├── test_m2c_translator.py
+│   ├── test_ci_package.py
+│   ├── test_governance_audit.py
+│   ├── test_release_tag.py
 │   └── smoke_test.py
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                # 单元测试 & 策略校验
+│       ├── governance-audit.yml  # 治理审计
+│       └── release-generic.yml   # 通用发布流程
+├── policy/
+│   ├── governance.json           # 治理规则
+│   ├── package-allowlist.txt     # 依赖白名单
+│   └── skill-contract.json       # skill 合约
+├── scripts/ci/                   # CI 校验脚本
 ├── .env.example
+├── SKILL.md
+├── GITHUB_SETUP_CHECKLIST.md
 ├── LICENSE
 └── requirements.txt
 ```
@@ -181,7 +200,7 @@ python -m m2c_pipeline tests/fixtures/test_input.md --translation-mode vertex --
 |------|------|--------|
 | `--template` | 风格模板 | `chiikawa` |
 | `--translation-mode` | 翻译模式 | `vertex` |
-| `--aspect-ratio` | 图片宽高比 | `1:1` |
+| `--aspect-ratio` | 图片宽高比（`1:1`/`4:3`/`3:4`/`16:9`/`9:16` 等） | `1:1` |
 | `--output-dir` | 输出目录 | `./output` |
 | `--max-workers` | 并发数 | `2` |
 | `--log-level` | 日志级别 | `INFO` |
@@ -197,7 +216,7 @@ python -m m2c_pipeline tests/fixtures/test_input.md --translation-mode vertex --
 | `M2C_LOCATION` | | `us-central1` | Gemini 文本调用区域 |
 | `M2C_GEMINI_MODEL` | | `gemini-2.0-flash` | 文本模型 |
 | `M2C_IMAGE_MODEL` | | `gemini-3.1-flash-image-preview` | 图片模型 |
-| `M2C_ASPECT_RATIO` | | `1:1` | 图片宽高比 |
+| `M2C_ASPECT_RATIO` | | `1:1` | 图片宽高比，支持 `1:1`/`4:3`/`3:4`/`16:9`/`9:16`/`2:3`/`3:2`/`4:5`/`5:4` |
 | `M2C_OUTPUT_DIR` | | `./output` | 输出目录 |
 | `M2C_TEMPLATE` | | `chiikawa` | 风格模板 |
 | `M2C_TRANSLATION_MODE` | | `vertex` | 翻译模式，`fallback` 仅用于 `--dry-run` |
