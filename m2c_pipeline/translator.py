@@ -5,6 +5,7 @@ Mermaid -> Chiikawa prompt translator using google-genai SDK (Vertex AI backend)
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 
 from tenacity import (
@@ -173,13 +174,109 @@ class MermaidTranslator:
 
         return self._parse_response(response_text, block)
 
+    def _assign_characters(self, mermaid_source: str) -> list[tuple[str, str, str, str]]:
+        """Extract nodes from mermaid source and assign Chiikawa characters.
+
+        Returns a list of (node_id, label, character_name, role_hint) tuples.
+        Assignment rules:
+          - First node (initiator) → core_actor (Chiikawa)
+          - Diamond nodes (decisions) → logic_processor (Hachiware)
+          - Remaining nodes → rotate across all three characters
+        """
+        char_map = self._template.character_mapping
+        roles = ["core_actor", "logic_processor", "high_energy"]
+        characters = [char_map[r] for r in roles]
+
+        # Use multiple targeted patterns to avoid group-numbering conflicts.
+        # Each pattern: group(1)=node_id, group(2)=label. is_diamond is per-pattern.
+        label_patterns: list[tuple[re.Pattern[str], bool]] = [
+            # A["label"] or A['label']
+            (re.compile(r'\b([A-Za-z_]\w*)\s*\["([^"]+)"\]'), False),
+            (re.compile(r"\b([A-Za-z_]\w*)\s*\['([^']+)'\]"), False),
+            # A{{"label"}} subgraph-style
+            (re.compile(r'\b([A-Za-z_]\w*)\s*\{\{"([^"]+)"\}\}'), False),
+            # A{"label"} or A{'label'} diamond
+            (re.compile(r'\b([A-Za-z_]\w*)\s*\{"([^"]+)"\}'), True),
+            (re.compile(r"\b([A-Za-z_]\w*)\s*\{'([^']+)'\}"), True),
+            # A("label") round
+            (re.compile(r'\b([A-Za-z_]\w*)\s*\("([^"]+)"\)'), False),
+            # A[label] unquoted bracket
+            (re.compile(r'\b([A-Za-z_]\w*)\s*\[([^\]"\']+)\]'), False),
+            # A{label} unquoted diamond
+            (re.compile(r'\b([A-Za-z_]\w*)\s*\{([^}"\']+)\}'), True),
+        ]
+
+        seen_ids: dict[str, str] = {}   # id -> label (insertion-ordered)
+        diamond_ids: set[str] = set()
+
+        # Scan line by line; skip style/class directives
+        skip_prefixes = ("style ", "class ", "classDef ", "linkStyle ")
+        for line in mermaid_source.splitlines():
+            stripped = line.strip()
+            if any(stripped.startswith(p) for p in skip_prefixes):
+                continue
+            for pattern, is_diamond in label_patterns:
+                for m in pattern.finditer(line):
+                    node_id, label = m.group(1), m.group(2).strip()
+                    if not label:
+                        label = node_id
+                    if node_id not in seen_ids:
+                        seen_ids[node_id] = label
+                    if is_diamond:
+                        diamond_ids.add(node_id)
+
+        if not seen_ids:
+            return []
+
+        node_ids = list(seen_ids.keys())
+        first_id = node_ids[0]
+
+        assignments: list[tuple[str, str, str, str]] = []
+        branch_counter = 0  # rotates across remaining (non-decision) nodes
+
+        for node_id in node_ids:
+            label = seen_ids[node_id]
+            if node_id == first_id:
+                char = characters[0]          # Chiikawa — initiator
+                role_hint = "initiator"
+            elif node_id in diamond_ids:
+                char = characters[1]          # Hachiware — decision
+                role_hint = "decision"
+            else:
+                char = characters[branch_counter % len(characters)]
+                role_hint = ""
+                branch_counter += 1
+            assignments.append((node_id, label, char, role_hint))
+
+        return assignments
+
     def _build_user_message(self, block: MermaidBlock) -> str:
-        return (
+        base = (
             f"Please analyse this Mermaid diagram and produce the Chiikawa "
             f"image prompt as instructed.\n\n"
             f"Diagram type: {block.diagram_type}\n\n"
             f"```mermaid\n{block.source}\n```"
         )
+
+        assignments = self._assign_characters(block.source)
+        if not assignments:
+            return base
+
+        lines = [
+            "",
+            "## Suggested Character Assignment",
+            "Based on the diagram structure, here is a recommended character mapping.",
+            "Follow this as your primary guide to ensure visual variety across nodes:",
+        ]
+        for node_id, label, char, role_hint in assignments:
+            hint = f" [{role_hint}]" if role_hint else ""
+            lines.append(f"- {node_id} \"{label}\" → {char}{hint}")
+        lines.append(
+            "\nPlease ensure different characters are used across parallel branches "
+            "to add visual variety. Do NOT assign the same character to all branches."
+        )
+
+        return base + "\n".join(lines)
 
     @retry(
         retry=retry_if_exception(lambda exc: not isinstance(exc, ImportError)),
