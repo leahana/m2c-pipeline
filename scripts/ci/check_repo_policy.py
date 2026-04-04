@@ -15,8 +15,13 @@ from scripts.ci.common import REPO_ROOT
 WORKFLOW_DIR = REPO_ROOT / ".github" / "workflows"
 REQUIRED_WORKFLOWS = {
     "ci.yml",
+    "claude-review.yml",
     "governance-audit.yml",
     "release-generic.yml",
+}
+# First-party Anthropic actions are exempt from SHA-pin enforcement.
+UNPINNED_ACTION_ALLOWLIST = {
+    "anthropics/claude-code-action",
 }
 WORKFLOW_USE_PATTERN = re.compile(r"^\s*uses:\s*([^\s@]+)@([^\s#]+)\s*$", re.MULTILINE)
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
@@ -78,6 +83,8 @@ def _validate_workflows() -> None:
         uses_refs = WORKFLOW_USE_PATTERN.findall(text)
         for action_name, ref in uses_refs:
             if action_name.startswith("./"):
+                continue
+            if action_name in UNPINNED_ACTION_ALLOWLIST:
                 continue
             if not SHA_PATTERN.fullmatch(ref):
                 raise ValueError(
