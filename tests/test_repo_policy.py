@@ -18,6 +18,82 @@ class RepoPolicyTests(unittest.TestCase):
     def test_validate_workflows_accepts_repository_workflows(self) -> None:
         check_repo_policy._validate_workflows()
 
+    def test_validate_workflows_accepts_release_please_permissions_in_any_order(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workflow_dir = Path(tmpdir)
+            _write_workflow(
+                workflow_dir / "ci.yml",
+                f"""
+                name: ci
+                on:
+                  pull_request:
+                permissions:
+                  contents: read
+                jobs:
+                  test:
+                    runs-on: ubuntu-latest
+                    steps:
+                      - uses: actions/checkout@{CHECKOUT_SHA}
+                """,
+            )
+            _write_workflow(
+                workflow_dir / "claude-review.yml",
+                f"""
+                name: claude-review
+                on:
+                  issue_comment:
+                permissions:
+                  contents: read
+                jobs:
+                  claude-review:
+                    runs-on: ubuntu-latest
+                    permissions:
+                      pull-requests: write
+                      issues: write
+                    steps:
+                      - uses: anthropics/claude-code-action@v1
+                """,
+            )
+            _write_workflow(
+                workflow_dir / "governance-audit.yml",
+                f"""
+                name: governance-audit
+                on:
+                  workflow_dispatch:
+                permissions:
+                  contents: read
+                jobs:
+                  audit:
+                    runs-on: ubuntu-latest
+                    steps:
+                      - uses: actions/checkout@{CHECKOUT_SHA}
+                """,
+            )
+            _write_workflow(
+                workflow_dir / "release-please.yml",
+                f"""
+                name: release-please
+                on:
+                  push:
+                    branches:
+                      - main
+                permissions:
+                  contents: read
+                jobs:
+                  release-please:
+                    runs-on: ubuntu-latest
+                    permissions:
+                      pull-requests: write
+                      contents: write
+                      issues: write
+                    steps:
+                      - uses: googleapis/release-please-action@{RELEASE_PLEASE_SHA}
+                """,
+            )
+
+            with patch.object(check_repo_policy, "WORKFLOW_DIR", workflow_dir):
+                check_repo_policy._validate_workflows()
+
     def test_validate_workflows_rejects_write_permissions_outside_release_please(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             workflow_dir = Path(tmpdir)

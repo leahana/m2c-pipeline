@@ -34,17 +34,6 @@ DENIED_JSON_PATTERNS = (
     "gcp-credentials",
     "vertex-adc",
 )
-RELEASE_PLEASE_PERMISSION_BLOCK = re.compile(
-    r"(?ms)^  release-please:\n.*?^    permissions:\n"
-    r"      contents: write\n"
-    r"      issues: write\n"
-    r"      pull-requests: write$"
-)
-CLAUDE_REVIEW_PERMISSION_BLOCK = re.compile(
-    r"(?ms)^  claude-review:\n.*?^    permissions:\n"
-    r"      issues: write\n"
-    r"      pull-requests: write$"
-)
 
 
 def _tracked_files() -> list[str]:
@@ -108,25 +97,72 @@ def _validate_workflows() -> None:
 
         write_permissions = WRITE_PERMISSION_PATTERN.findall(text)
         if workflow_path.name == "release-please.yml":
-            if sorted(write_permissions) != ["contents", "issues", "pull-requests"]:
+            if _job_write_permissions(text, "release-please") != [
+                "contents",
+                "issues",
+                "pull-requests",
+            ]:
                 raise ValueError(
                     "release-please.yml must request contents/issues/pull-requests write exactly once."
                 )
-            if not RELEASE_PLEASE_PERMISSION_BLOCK.search(text):
+            if sorted(WRITE_PERMISSION_PATTERN.findall(text)) != [
+                "contents",
+                "issues",
+                "pull-requests",
+            ]:
+                raise ValueError(
+                    "release-please.yml must not request write permissions outside the release-please job."
+                )
+            if not _job_write_permissions(text, "release-please"):
                 raise ValueError(
                     "release-please.yml must scope write permissions to the release-please job."
                 )
         elif workflow_path.name == "claude-review.yml":
-            if sorted(write_permissions) != ["issues", "pull-requests"]:
+            if _job_write_permissions(text, "claude-review") != ["issues", "pull-requests"]:
                 raise ValueError(
                     "claude-review.yml must request issues/pull-requests write exactly once."
                 )
-            if not CLAUDE_REVIEW_PERMISSION_BLOCK.search(text):
+            if sorted(WRITE_PERMISSION_PATTERN.findall(text)) != ["issues", "pull-requests"]:
+                raise ValueError(
+                    "claude-review.yml must not request write permissions outside the claude-review job."
+                )
+            if not _job_write_permissions(text, "claude-review"):
                 raise ValueError(
                     "claude-review.yml must scope write permissions to the claude-review job."
                 )
         elif write_permissions:
             raise ValueError(f"{workflow_path.name} must not request write permissions")
+
+
+def _job_write_permissions(text: str, job_name: str) -> list[str]:
+    lines = text.splitlines()
+    in_job = False
+    in_permissions = False
+    permissions: list[str] = []
+
+    for line in lines:
+        if re.fullmatch(rf"  {re.escape(job_name)}:", line):
+            in_job = True
+            in_permissions = False
+            continue
+        if in_job and re.fullmatch(r"  [A-Za-z0-9_.-]+:", line):
+            break
+        if not in_job:
+            continue
+        if line == "    permissions:":
+            in_permissions = True
+            continue
+        if not in_permissions:
+            continue
+
+        match = re.fullmatch(r"      ([a-z-]+): write", line)
+        if match:
+            permissions.append(match.group(1))
+            continue
+        if not line.startswith("      "):
+            break
+
+    return sorted(permissions)
 
 
 def validate_repo_policy() -> None:
