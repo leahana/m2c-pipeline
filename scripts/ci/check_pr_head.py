@@ -12,7 +12,10 @@ TITLE_PATTERN = re.compile(
     r"^(feat|fix|docs|refactor|test|chore|ci|build|perf|revert)(\([a-z0-9._/-]+\))?: .+"
 )
 HEAD_PATTERN = re.compile(
-    r"^(dev|(feat|fix|docs|refactor|test|chore|ci|build|perf|revert|release)/[a-z0-9._/-]+)$"
+    r"^(dev|"
+    r"(feat|fix|docs|refactor|test|chore|ci|build|perf|revert|release)/[a-z0-9._/-]+|"
+    r"release-please--branches--[a-z0-9._/-]+(?:--components--[a-z0-9._/-]+)?"
+    r")$"
 )
 
 

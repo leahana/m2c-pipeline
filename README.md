@@ -21,7 +21,7 @@ python -m m2c_pipeline path/to/input.md
 ## 🎀 特性亮点
 
 - 🔍 **自动提取** — 正则解析 Markdown，支持多个 Mermaid block 批量处理
-- 🌸 **Chiikawa 风格** — Gemini 文本模型理解图结构，生成可爱教育插画提示词
+- 🌸 **Chiikawa 风格** — Gemini 文本模型理解图结构，生成可爱教育插画提示词；自动按节点类型分配吉伊 / 八千代 / 乌萨奇角色，保证视觉多样性
 - 🖼️ **Vertex AI 生图** — 通过 `google-genai` SDK 调用 Gemini 图片模型
 - ⚡ **并发生成** — `ThreadPoolExecutor` 并发，`tqdm` 进度条实时反馈
 - 🔁 **自动重试** — `tenacity` 指数退避，Vertex 调用失败时 Translate 和 Paint 阶段都有保护
@@ -93,22 +93,31 @@ m2c-pipeline/
 │   ├── test_m2c_storage.py
 │   ├── test_m2c_translator.py
 │   ├── test_ci_package.py
+│   ├── test_skill_spec.py
 │   ├── test_governance_audit.py
+│   ├── test_check_pr_head.py
+│   ├── test_repo_policy.py
 │   ├── test_release_tag.py
 │   └── smoke_test.py
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml                # 单元测试 & 策略校验
+│       ├── claude-review.yml     # PR 评论触发 Claude 代码审查
 │       ├── governance-audit.yml  # 治理审计
-│       └── release-generic.yml   # 通用发布流程
+│       └── release-please.yml    # 标准化 release PR + 发布流程
+├── CHANGELOG.md                  # release-please 维护的版本日志
+├── .release-please-manifest.json # release-please 当前版本基线
+├── release-please-config.json    # release-please 仓库配置
 ├── policy/
 │   ├── governance.json           # 治理规则
 │   ├── package-allowlist.txt     # 依赖白名单
 │   └── skill-contract.json       # skill 合约
+├── references/                   # skill 参考文档（按需加载）
+├── evals/                        # skill 评估场景
 ├── scripts/ci/                   # CI 校验脚本
 ├── .env.example
-├── SKILL.md
-├── GITHUB_SETUP_CHECKLIST.md
+├── AGENTS.md                     # agent 开发指南
+├── SKILL.md                      # Claude Code skill 规范
 ├── LICENSE
 └── requirements.txt
 ```
@@ -258,6 +267,10 @@ diagram_type     图类型（graph / sequenceDiagram / ...）
 ```bash
 python -m unittest \
   tests.test_ci_package \
+  tests.test_check_pr_head \
+  tests.test_repo_policy \
+  tests.test_release_tag \
+  tests.test_skill_spec \
   tests.test_m2c_config \
   tests.test_m2c_cli \
   tests.test_m2c_extractor \
@@ -281,6 +294,35 @@ python tests/smoke_test.py --input tests/fixtures/test_input.md --with-image
 
 ---
 
+## 📦 发布工作流
+
+本仓库现在使用 `release-please` 作为标准发版入口，默认流程如下：
+
+1. 开发分支先合到本地 `dev`
+2. 从 `dev` 发 PR 到 `main`
+3. `dev -> main` 推荐使用 **merge commit**
+4. `release-please` 在 `main` 上自动创建 release PR
+5. merge release PR 后，自动创建 tag、GitHub Release，并上传通用 zip/sha256 资产
+
+### 约定
+
+- 功能 PR 和 `dev -> main` PR **不再手工修改** `m2c_pipeline/version.py`
+- 版本号、`CHANGELOG.md`、tag、GitHub Release 统一由 release PR 管理
+- Conventional Commits 作为发版语义来源：
+  - `feat:` => minor
+  - `fix:` / `perf:` => patch
+  - 带 `!` 的 breaking change => major
+  - `docs:` / `ci:` / `chore:` 默认不会单独触发新版本
+
+### release PR 说明
+
+- release PR 是自动生成的正常 PR，不是异常分支
+- 自动分支名通常为 `release-please--branches--main`
+- 首次启用前，需要在仓库 Secrets 中配置 `RELEASE_PLEASE_TOKEN`
+- 还需要在仓库 Actions 设置里允许 GitHub Actions 创建和更新 PR
+
+---
+
 ## 🔒 安全说明
 
 - 🚫 不在仓库中存储 API key、token、服务账号 JSON
@@ -288,7 +330,6 @@ python tests/smoke_test.py --input tests/fixtures/test_input.md --with-image
 - 🖼️ 生成图片、失败日志、测试输出均属本地产物，不提交
 - 📋 共享配置只共享 `.env.example`
 - ⛔ 明确禁止 `GOOGLE_API_KEY`、`GEMINI_API_KEY` 或 `genai.Client(api_key=...)`
-- 🏷️ `v*` tag 治理基线是“允许首次创建，禁止后续 update 和 deletion”；不要为该 ruleset 添加 `creation`，否则在无 bypass 下会阻断正常 release tag 创建
 
 ---
 
