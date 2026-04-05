@@ -59,8 +59,47 @@ cp .env.example .env
 ./venv/bin/python -m m2c_pipeline fixtures/minimal-input.md --translation-mode vertex --output-dir ./output
 ```
 
-> 前提条件：POSIX 环境、Python 3.11+，并且 `pip install` 可访问依赖源。
-> agent 首跑顺序固定为：先检查 `./venv/bin/python`，再检查系统 `python3/python`，仍缺失时按 `references/install-python.md` 选择单一路径安装并确认权限；安装后回到 repo-local bootstrap。Windows 上则由 agent 安装 Python 后执行 `python -m venv venv` 和 `.\venv\Scripts\python.exe -m pip install -r requirements.txt`。
+> 前提条件：POSIX 环境、Python 3.11+，`pip install` 可访问依赖源。
+
+## 使用自己的文件
+
+你的 Markdown 文件只需要包含至少一个 ` ```mermaid ` 代码块，即可作为输入。
+
+```bash
+# 先用离线模式确认提示词生成正常
+./venv/bin/python -m m2c_pipeline path/to/your-file.md --dry-run --translation-mode fallback
+
+# 确认无误后，正式生成图片
+./venv/bin/python -m m2c_pipeline path/to/your-file.md --translation-mode vertex --output-dir ./output
+```
+
+文件中有多个 mermaid 块时，pipeline 会并发处理，每个块生成一张独立的 PNG。
+
+## 输出示例
+
+**离线 dry-run 输出**（终端日志）：
+
+```
+Extracting mermaid blocks from fixtures/minimal-input.md ...
+Found 1 mermaid block(s).
+Translating block 1/1 (fallback mode) ...
+Dry run complete. No images were generated.
+```
+
+**正式生成输出**（生成文件示例）：
+
+```
+Extracting mermaid blocks from your-file.md ...
+Found 2 mermaid block(s).
+Translating and painting blocks ...  2/2
+Generated images:
+  ./output/diagram_20260406_120000_00.png
+  ./output/diagram_20260406_120001_01.png
+```
+
+生成的 PNG 文件内嵌有元数据（原始 Mermaid 代码、最终提示词、生成时间、块索引、图表类型）。
+
+如果某个块生成失败，会在输出目录写入 `diagram_YYYYMMDD_HHMMSS_NN_FAILED.txt` 作为恢复参考。
 
 ## 常用参数
 
@@ -72,6 +111,8 @@ cp .env.example .env
 | `--output-dir` | 输出目录 | `./output` |
 | `--dry-run` | 跳过图片生成 | 关 |
 | `--max-workers` | 并发数 | `2` |
+| `--log-level` | 日志级别（`DEBUG`/`INFO`/`WARNING`/`ERROR`）| `INFO` |
+| `--version` | 打印版本号并退出 | — |
 
 ## 环境变量
 
