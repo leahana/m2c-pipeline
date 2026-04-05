@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.5.1](https://github.com/leahana/m2c-pipeline/compare/v0.5.0...v0.5.1) (2026-04-05)
+
+
+### Documentation
+
+* expand skill runtime guidance and eval coverage ([2776482](https://github.com/leahana/m2c-pipeline/commit/277648227d93b209ce48aba0e1511b9c0d0aeb8b))
+* expand skill runtime guidance and eval coverage ([4a7f00c](https://github.com/leahana/m2c-pipeline/commit/4a7f00ca25f2791dfc78a3e0efe8af0bcc98d266))
+
 ## [0.5.0](https://github.com/leahana/m2c-pipeline/compare/v0.4.1...v0.5.0) (2026-04-05)
 
 
