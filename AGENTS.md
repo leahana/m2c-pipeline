@@ -109,6 +109,22 @@ Templates live under `m2c_pipeline/templates/`.
 
 If a new template is added later, register it in the template registry and keep the CLI contract stable.
 
+## Versioning
+
+- Version is managed automatically by [release-please](https://github.com/googleapis/release-please)
+- Do not manually edit `m2c_pipeline/version.py` or `.release-please-manifest.json`
+- Release workflow: merge to `main` → release-please opens a version-bump PR → merge that PR → tag and GitHub Release are created automatically
+- Configuration lives in `release-please-config.json`
+
+## Skill Distribution
+
+The `skill` branch is the remote-install target for CC Switch users.
+
+- It is published automatically by CI (`scripts/ci/publish_skill_branch.py`) at the end of every release-please release.
+- It contains only the files listed in `policy/package-allowlist.txt`.
+- **Never commit to the `skill` branch manually** — it is always overwritten by CI force-push.
+- The branch is protected by a GitHub Ruleset (`Protect skill branch`) that restricts deletion. Force-push remains allowed for CI (personal repo limitation: GitHub Actions bypass is an Organization-only feature).
+
 ## Guardrails
 
 - Keep this project `m2c_pipeline`-only; do not reintroduce alternative backends

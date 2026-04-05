@@ -10,6 +10,7 @@
     "required-job-contract"
   ],
   "release_tag_regex": "^v\\d+\\.\\d+\\.\\d+$",
+  "protected_branches": ["main", "dev"],
   "tag_ruleset": {
     "target": "tag",
     "enforcement": "active",
@@ -18,6 +19,16 @@
     ],
     "required_tag_rules": [
       "update",
+      "deletion"
+    ]
+  },
+  "skill_branch_ruleset": {
+    "target": "branch",
+    "enforcement": "active",
+    "ref_name_include": [
+      "refs/heads/skill"
+    ],
+    "required_rules": [
       "deletion"
     ]
   }
