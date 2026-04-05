@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.5.0](https://github.com/leahana/m2c-pipeline/compare/v0.4.1...v0.5.0) (2026-04-05)
+
+
+### Features
+
+* add python preflight bootstrap flow for skill runtime ([e87be53](https://github.com/leahana/m2c-pipeline/commit/e87be53b7c33b55eec23727927bf278866f8b52f))
+* harden skill bootstrap and published artifact validation ([b041452](https://github.com/leahana/m2c-pipeline/commit/b041452744a171cabce12fad6476297f3a530037))
+
 ## [0.4.1](https://github.com/leahana/m2c-pipeline/compare/v0.4.0...v0.4.1) (2026-04-05)
 
 
