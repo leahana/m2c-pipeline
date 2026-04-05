@@ -58,4 +58,6 @@ jobs:
 
       - name: Publish skill branch
         if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          SKILL_PUBLISH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: python3 scripts/ci/publish_skill_branch.py
