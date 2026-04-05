@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.3.1](https://github.com/leahana/m2c-pipeline/compare/v0.3.0...v0.3.1) (2026-04-05)
+
+
+### Bug Fixes
+
+* pass auth token to publish_skill_branch for CI push ([83c3921](https://github.com/leahana/m2c-pipeline/commit/83c39213f011f85d6bfc1ad963c778d3739847a9))
+* pass auth token to publish_skill_branch via SKILL_PUBLISH_TOKEN env ([6775666](https://github.com/leahana/m2c-pipeline/commit/67756667e36eb00479c90eaaddf0247a490a65bc))
+
 ## [0.3.0](https://github.com/leahana/m2c-pipeline/compare/v0.2.1...v0.3.0) (2026-04-05)
 
 
