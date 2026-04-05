@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.ci.publish_skill_branch import PublishError, build_skill_commit, collect_skill_files
+from scripts.ci.publish_skill_branch import SKILL_BRANCH_DIR, build_skill_commit
 
 
 EXCLUDED_DIRS = {"tests", "scripts", ".github", "policy"}
@@ -144,12 +144,33 @@ class PublishSkillBranchTests(unittest.TestCase):
                 )
                 self.assertIn("skill v9.9.9", log.stdout)
                 readme = subprocess.run(
-                    ["git", "show", "HEAD:README.md"],
+                    ["git", "show", f"HEAD:{SKILL_BRANCH_DIR}/README.md"],
                     capture_output=True, text=True, cwd=stage_dir, check=True,
                 )
                 self.assertEqual(readme.stdout, "# m2c-pipeline\n\nSkill README content.\n")
+                root_readme = subprocess.run(
+                    ["git", "show", "HEAD:README.md"],
+                    capture_output=True, text=True, cwd=stage_dir, check=True,
+                )
+                self.assertEqual(root_readme.stdout, readme.stdout)
+                skill = subprocess.run(
+                    ["git", "show", f"HEAD:{SKILL_BRANCH_DIR}/SKILL.md"],
+                    capture_output=True, text=True, cwd=stage_dir, check=True,
+                )
+                self.assertIn("name: m2c-pipeline", skill.stdout)
                 ls_tree = subprocess.run(
                     ["git", "ls-tree", "--name-only", "HEAD"],
                     capture_output=True, text=True, cwd=stage_dir, check=True,
                 )
-                self.assertNotIn("SKILL_README.md", ls_tree.stdout.splitlines())
+                root_entries = ls_tree.stdout.splitlines()
+                self.assertEqual(root_entries, ["README.md", SKILL_BRANCH_DIR])
+                nested_tree = subprocess.run(
+                    ["git", "ls-tree", "--name-only", f"HEAD:{SKILL_BRANCH_DIR}"],
+                    capture_output=True, text=True, cwd=stage_dir, check=True,
+                )
+                nested_entries = nested_tree.stdout.splitlines()
+                self.assertIn("SKILL.md", nested_entries)
+                self.assertIn("README.md", nested_entries)
+                self.assertNotIn("SKILL_README.md", nested_entries)
+                self.assertNotIn("SKILL_README.md", root_entries)
+                self.assertNotIn("SKILL.md", root_entries)
