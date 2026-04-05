@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.3.0](https://github.com/leahana/m2c-pipeline/compare/v0.2.1...v0.3.0) (2026-04-05)
+
+
+### Features
+
+* publish skill-only content to skill branch on release ([0b7f7f4](https://github.com/leahana/m2c-pipeline/commit/0b7f7f4a45b8eac6d6fcb00a55acd9741d162e5e))
+* publish skill-only content to skill branch on release ([dccb814](https://github.com/leahana/m2c-pipeline/commit/dccb814796ad8a52fbe3e3caedcc164f2b35aaa9))
+
 ## [0.2.1](https://github.com/leahana/m2c-pipeline/compare/v0.2.0...v0.2.1) (2026-04-04)
 
 
