@@ -59,6 +59,11 @@ def build_skill_commit(
 ) -> None:
     stage_package_files(repo_root, stage_dir, source_files)
 
+    # Replace README.md with skill-user-focused SKILL_README.md
+    skill_readme = stage_dir / "SKILL_README.md"
+    if skill_readme.exists():
+        skill_readme.replace(stage_dir / "README.md")
+
     git_env = {**os.environ, "GIT_AUTHOR_NAME": "github-actions[bot]",
                "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
                "GIT_COMMITTER_NAME": "github-actions[bot]",
@@ -67,7 +72,7 @@ def build_skill_commit(
     _run(["git", "init", "-b", "skill"], cwd=stage_dir)
     _run(["git", "add", "."], cwd=stage_dir)
     _run(
-        ["git", "commit", "-m", f"skill v{version}"],
+        ["git", "-c", "commit.gpgsign=false", "commit", "-m", f"skill v{version}"],
         cwd=stage_dir,
         env=git_env,
     )

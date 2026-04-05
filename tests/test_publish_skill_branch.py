@@ -29,6 +29,7 @@ def _create_repo(root: Path) -> list[str]:
         encoding="utf-8",
     )
     (root / "README.md").write_text("readme\n", encoding="utf-8")
+    (root / "SKILL_README.md").write_text("# m2c-pipeline\n\nSkill README content.\n", encoding="utf-8")
     (root / "LICENSE").write_text("license\n", encoding="utf-8")
     (root / ".env.example").write_text("M2C_PROJECT_ID=demo\n", encoding="utf-8")
     (root / "requirements.txt").write_text("Pillow>=10.0.0\n", encoding="utf-8")
@@ -42,6 +43,7 @@ def _create_repo(root: Path) -> list[str]:
 
     return [
         "SKILL.md",
+        "SKILL_README.md",
         "README.md",
         "LICENSE",
         ".env.example",
@@ -71,6 +73,7 @@ class PublishSkillBranchTests(unittest.TestCase):
 
         # Must include all allowlisted content
         self.assertIn("SKILL.md", rel_paths)
+        self.assertIn("SKILL_README.md", rel_paths)
         self.assertIn("README.md", rel_paths)
         self.assertIn("LICENSE", rel_paths)
         self.assertIn(".env.example", rel_paths)
@@ -140,3 +143,13 @@ class PublishSkillBranchTests(unittest.TestCase):
                     capture_output=True, text=True, cwd=stage_dir, check=True,
                 )
                 self.assertIn("skill v9.9.9", log.stdout)
+                readme = subprocess.run(
+                    ["git", "show", "HEAD:README.md"],
+                    capture_output=True, text=True, cwd=stage_dir, check=True,
+                )
+                self.assertEqual(readme.stdout, "# m2c-pipeline\n\nSkill README content.\n")
+                ls_tree = subprocess.run(
+                    ["git", "ls-tree", "--name-only", "HEAD"],
+                    capture_output=True, text=True, cwd=stage_dir, check=True,
+                )
+                self.assertNotIn("SKILL_README.md", ls_tree.stdout.splitlines())

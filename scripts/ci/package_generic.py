@@ -27,9 +27,21 @@ class PackagingError(RuntimeError):
     """Raised when packaging validation fails."""
 
 
+EXCLUDED_PACKAGE_PARTS = {"__pycache__"}
+EXCLUDED_PACKAGE_SUFFIXES = {".pyc", ".pyo"}
+
+
 def package_basename(version: str | None = None) -> str:
     resolved_version = version or load_version()
     return f"m2c-pipeline-generic-v{resolved_version}"
+
+
+def _is_package_file(path: Path, repo_root: Path) -> bool:
+    rel_parts = path.relative_to(repo_root).parts
+    return (
+        not any(part in EXCLUDED_PACKAGE_PARTS for part in rel_parts)
+        and path.suffix not in EXCLUDED_PACKAGE_SUFFIXES
+    )
 
 
 def _collect_recursive(base_dir: Path, repo_root: Path) -> list[Path]:
@@ -48,6 +60,8 @@ def _collect_recursive(base_dir: Path, repo_root: Path) -> list[Path]:
             if file_path.is_symlink():
                 raise PackagingError(f"Symlinked files are not allowed: {file_path}")
             resolve_within_repo(file_path, repo_root)
+            if not _is_package_file(file_path, repo_root):
+                continue
             collected.append(file_path)
     return collected
 
@@ -71,6 +85,8 @@ def collect_package_files(
             if path.is_dir():
                 raise PackagingError(f"Directory allowlist entries must use /**: {pattern}")
             resolve_within_repo(path, repo_root)
+            if not _is_package_file(path, repo_root):
+                raise PackagingError(f"Allowlisted path is not distributable: {path}")
             candidates = [path]
 
         for candidate in candidates:

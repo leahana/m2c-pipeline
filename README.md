@@ -130,6 +130,7 @@ m2c-pipeline/
 ├── .env.example
 ├── AGENTS.md                     # agent 开发指南
 ├── SKILL.md                      # Claude Code skill 规范
+├── SKILL_README.md               # skill 分支专用 README（发布时替换 README.md）
 ├── LICENSE
 └── requirements.txt
 ```
