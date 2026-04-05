@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.4.0](https://github.com/leahana/m2c-pipeline/compare/v0.3.1...v0.4.0) (2026-04-05)
+
+
+### Features
+
+* add SKILL_README.md as skill-branch README ([d8a6274](https://github.com/leahana/m2c-pipeline/commit/d8a627422b302163531be31958334269da2e31c8))
+* add SKILL_README.md as skill-branch README ([0e91c52](https://github.com/leahana/m2c-pipeline/commit/0e91c5292170a87564a7859e989ce8a8c85b9ba3))
+
 ## [0.3.1](https://github.com/leahana/m2c-pipeline/compare/v0.3.0...v0.3.1) (2026-04-05)
 
 
