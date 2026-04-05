@@ -12,6 +12,16 @@ permissions:
   contents: read
 
 jobs:
+  branch-protection-sync:
+    name: branch-protection-sync
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - run: python3 scripts/ci/governance_audit.py --mode sync-branch-protection
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_ADMIN_AUDIT_TOKEN }}
+
   branch-protection-audit:
     name: branch-protection-audit
     runs-on: ubuntu-latest

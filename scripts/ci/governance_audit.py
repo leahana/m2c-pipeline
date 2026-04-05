@@ -27,14 +27,21 @@ class GitHubApi:
         self._token = token
         self._api_url = api_url.rstrip("/")
 
-    def get(self, path: str) -> dict | list:
+    def _request(self, method: str, path: str, payload: dict | None = None) -> dict | list:
+        body = None
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {self._token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+        if payload is not None:
+            body = json.dumps(payload).encode("utf-8")
+            headers["Content-Type"] = "application/json"
         request = urllib.request.Request(
             url=f"{self._api_url}{path}",
-            headers={
-                "Accept": "application/vnd.github+json",
-                "Authorization": f"Bearer {self._token}",
-                "X-GitHub-Api-Version": "2022-11-28",
-            },
+            headers=headers,
+            data=body,
+            method=method,
         )
         try:
             with urllib.request.urlopen(request) as response:
@@ -45,6 +52,12 @@ class GitHubApi:
                 f"GitHub API request failed for {path}: {exc.code} {body}"
             ) from exc
 
+    def get(self, path: str) -> dict | list:
+        return self._request("GET", path)
+
+    def patch(self, path: str, payload: dict) -> dict | list:
+        return self._request("PATCH", path, payload)
+
 
 def _parse_repo() -> tuple[str, str]:
     repository = os.environ.get("GITHUB_REPOSITORY", "")
@@ -52,6 +65,28 @@ def _parse_repo() -> tuple[str, str]:
         raise GovernanceAuditError("GITHUB_REPOSITORY must be set to <owner>/<repo>.")
     owner, repo = repository.split("/", 1)
     return owner, repo
+
+
+def sync_branch_protection_required_checks(api: GitHubApi, owner: str, repo: str, contract: dict) -> bool:
+    branch = contract["default_branch"]
+    path = f"/repos/{owner}/{repo}/branches/{branch}/protection/required_status_checks"
+    current = api.get(path)
+    desired_contexts = contract["required_checks"]
+    desired_strict = True
+
+    current_contexts = current.get("contexts", [])
+    current_strict = current.get("strict", False)
+    if current_strict == desired_strict and sorted(current_contexts) == sorted(desired_contexts):
+        return False
+
+    api.patch(
+        path,
+        {
+            "strict": desired_strict,
+            "contexts": desired_contexts,
+        },
+    )
+    return True
 
 
 def audit_branch_protection(api: GitHubApi, owner: str, repo: str, contract: dict) -> None:
@@ -181,7 +216,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Audit repository governance settings.")
     parser.add_argument(
         "--mode",
-        choices=["all", "branch-protection", "tag-ruleset", "skill-branch-ruleset"],
+        choices=[
+            "all",
+            "branch-protection",
+            "sync-branch-protection",
+            "tag-ruleset",
+            "skill-branch-ruleset",
+        ],
         default="all",
         help="Subset of audits to run.",
     )
@@ -195,6 +236,12 @@ def main() -> int:
     api = GitHubApi(token=token, api_url=os.environ.get("GITHUB_API_URL", "https://api.github.com"))
     contract = load_json(GOVERNANCE_CONTRACT)
 
+    if args.mode == "sync-branch-protection":
+        changed = sync_branch_protection_required_checks(api, owner, repo, contract)
+        if changed:
+            print("Branch protection required checks synchronized.")
+        else:
+            print("Branch protection required checks already up to date.")
     if args.mode in {"all", "branch-protection"}:
         audit_branch_protection(api, owner, repo, contract)
         print("Branch protection audit passed.")

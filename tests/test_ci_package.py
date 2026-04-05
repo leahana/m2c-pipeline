@@ -35,7 +35,6 @@ class PackageGenericTests(unittest.TestCase):
         return [
             "SKILL.md",
             "SKILL_README.md",
-            "README.md",
             "LICENSE",
             ".env.example",
             "requirements.txt",
@@ -63,28 +62,25 @@ class PackageGenericTests(unittest.TestCase):
             with zipfile.ZipFile(archive_path) as archive:
                 members = sorted(archive.namelist())
                 root_readme = archive.read("m2c-pipeline-generic-v9.9.9/README.md").decode("utf-8")
-                nested_readme = archive.read(
-                    "m2c-pipeline-generic-v9.9.9/m2c-pipeline/README.md"
-                ).decode("utf-8")
 
         self.assertEqual(
             members,
             [
+                "m2c-pipeline-generic-v9.9.9/.env.example",
+                "m2c-pipeline-generic-v9.9.9/LICENSE",
                 "m2c-pipeline-generic-v9.9.9/README.md",
-                "m2c-pipeline-generic-v9.9.9/m2c-pipeline/.env.example",
-                "m2c-pipeline-generic-v9.9.9/m2c-pipeline/LICENSE",
-                "m2c-pipeline-generic-v9.9.9/m2c-pipeline/README.md",
-                "m2c-pipeline-generic-v9.9.9/m2c-pipeline/SKILL.md",
-                "m2c-pipeline-generic-v9.9.9/m2c-pipeline/evals/offline-dry-run.md",
-                "m2c-pipeline-generic-v9.9.9/m2c-pipeline/fixtures/minimal-input.md",
-                "m2c-pipeline-generic-v9.9.9/m2c-pipeline/m2c_pipeline/module.py",
-                "m2c-pipeline-generic-v9.9.9/m2c-pipeline/references/runtime-commands.md",
-                "m2c-pipeline-generic-v9.9.9/m2c-pipeline/requirements.txt",
-                "m2c-pipeline-generic-v9.9.9/m2c-pipeline/scripts/bootstrap_env.sh",
+                "m2c-pipeline-generic-v9.9.9/SKILL.md",
+                "m2c-pipeline-generic-v9.9.9/evals/offline-dry-run.md",
+                "m2c-pipeline-generic-v9.9.9/fixtures/minimal-input.md",
+                "m2c-pipeline-generic-v9.9.9/m2c_pipeline/module.py",
+                "m2c-pipeline-generic-v9.9.9/references/runtime-commands.md",
+                "m2c-pipeline-generic-v9.9.9/requirements.txt",
+                "m2c-pipeline-generic-v9.9.9/scripts/bootstrap_env.sh",
             ],
         )
         self.assertEqual(root_readme, "# m2c-pipeline\n\nSkill README.\n")
-        self.assertEqual(nested_readme, root_readme)
+        self.assertNotIn("m2c-pipeline-generic-v9.9.9/SKILL_README.md", members)
+        self.assertNotIn("m2c-pipeline-generic-v9.9.9/m2c-pipeline/README.md", members)
 
     def test_collect_package_files_rejects_symlink(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

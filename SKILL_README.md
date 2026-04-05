@@ -2,19 +2,50 @@
 
 > 把 Markdown 里的 Mermaid 图，变成 Chiikawa 风格的可爱教育插画
 
-## 通过 CC Switch 安装
+## 安装方式
+
+这份 README 会同时作为 `skill` 分支和 GitHub Release 通用压缩包的入口文档；两种分发方式目录结构一致，根目录就是运行入口。
+
+### 1. 通过 CC Switch 安装
 
 1. 打开 CC Switch → Skills → Add Repository
-2. 填入 `leahana/m2c-pipeline`，Branch 填 `skill`
+2. Repository 填 `leahana/m2c-pipeline`，Branch 填 `skill`
 3. 安装后即可在 Claude Code 中使用 `m2c-pipeline` skill
+
+### 2. 通过 GitHub Release 压缩包安装
+
+1. 从 GitHub Release 下载 `m2c-pipeline-generic-v<version>.zip`
+2. 解压后进入根目录
+3. 在根目录执行 `./scripts/bootstrap_env.sh`
+
+```bash
+cd m2c-pipeline-generic-v<version>
+./scripts/bootstrap_env.sh
+```
+
+### 3. 直接拉取 `skill` 分支
+
+全新拉取：
+
+```bash
+git clone --branch skill --single-branch https://github.com/leahana/m2c-pipeline.git
+cd m2c-pipeline
+./scripts/bootstrap_env.sh
+```
+
+已有本地仓库时：
+
+```bash
+git fetch origin skill
+git switch skill
+```
 
 ## 快速开始
 
-如果你当前目录已经是 `m2c-pipeline` 源码仓库，直接在仓库根目录执行下面的命令即可；已有
-`./venv` 时可以直接复用。
+无论你当前目录来自源码仓库、Release 解压目录，还是直接 checkout 的 `skill` 分支，都可以在根目录执行同一套命令；已有 `./venv` 时可以直接复用。
 
 ```bash
-# 1. 在当前源码仓库根目录准备环境
+# 1. 在当前根目录准备环境
 ./scripts/bootstrap_env.sh
 
 # 2. 配置凭据

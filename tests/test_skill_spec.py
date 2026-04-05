@@ -68,7 +68,7 @@ class SkillSpecTests(unittest.TestCase):
 
     def _write_allowlist(self, path: Path) -> None:
         path.write_text(
-            "SKILL.md\nSKILL_README.md\nREADME.md\nLICENSE\n.env.example\nrequirements.txt\nscripts/bootstrap_env.sh\nfixtures/**\nreferences/**\nevals/**\nm2c_pipeline/**\n",
+            "SKILL.md\nSKILL_README.md\nLICENSE\n.env.example\nrequirements.txt\nscripts/bootstrap_env.sh\nfixtures/**\nreferences/**\nevals/**\nm2c_pipeline/**\n",
             encoding="utf-8",
         )
 

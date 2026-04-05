@@ -29,7 +29,6 @@ class PackagingError(RuntimeError):
 
 EXCLUDED_PACKAGE_PARTS = {"__pycache__"}
 EXCLUDED_PACKAGE_SUFFIXES = {".pyc", ".pyo"}
-PUBLISHED_SKILL_DIR = "m2c-pipeline"
 ROOT_README = "README.md"
 SKILL_README = "SKILL_README.md"
 
@@ -99,14 +98,44 @@ def collect_package_files(
     return [collected[key] for key in sorted(collected)]
 
 
-def stage_package_files(
-    repo_root: Path,
-    package_root: Path,
+def _published_rel_path(source_rel_path: str) -> str | None:
+    if source_rel_path == ROOT_README:
+        return None
+    if source_rel_path == SKILL_README:
+        return ROOT_README
+    return source_rel_path
+
+
+def _build_publish_mapping(
     source_files: list[Path],
+    repo_root: Path = REPO_ROOT,
+) -> list[tuple[str, Path]]:
+    published: dict[str, Path] = {}
+    for source_path in source_files:
+        source_rel_path = relative_posix(source_path, repo_root)
+        published_rel_path = _published_rel_path(source_rel_path)
+        if published_rel_path is None:
+            continue
+        if published_rel_path in published:
+            raise PackagingError(
+                f"Duplicate published path detected: {published_rel_path}"
+            )
+        published[published_rel_path] = source_path
+
+    if ROOT_README not in published:
+        raise PackagingError(
+            f"Allowlisted publish source is missing required {SKILL_README}."
+        )
+
+    return [(rel_path, published[rel_path]) for rel_path in sorted(published)]
+
+
+def stage_package_files(
+    package_root: Path,
+    published_files: list[tuple[str, Path]],
 ) -> list[Path]:
     staged_paths: list[Path] = []
-    for source_path in source_files:
-        rel_path = relative_posix(source_path, repo_root)
+    for rel_path, source_path in published_files:
         destination = package_root / rel_path
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source_path, destination)
@@ -139,13 +168,7 @@ def published_skill_paths(
     source_files: list[Path],
     repo_root: Path = REPO_ROOT,
 ) -> list[str]:
-    published: list[str] = [ROOT_README]
-    for source_file in source_files:
-        rel_path = relative_posix(source_file, repo_root)
-        if rel_path == SKILL_README:
-            continue
-        published.append(f"{PUBLISHED_SKILL_DIR}/{rel_path}")
-    return published
+    return [rel_path for rel_path, _ in _build_publish_mapping(source_files, repo_root)]
 
 
 def build_published_skill_tree(
@@ -161,21 +184,12 @@ def build_published_skill_tree(
         stage_dir.mkdir(parents=True, exist_ok=True)
 
     resolved_source_files = source_files or collect_package_files(repo_root, allowlist)
-    skill_root = stage_dir / PUBLISHED_SKILL_DIR
-    skill_root.mkdir(parents=True, exist_ok=True)
-    stage_package_files(repo_root, skill_root, resolved_source_files)
-
-    skill_readme = skill_root / SKILL_README
-    if not skill_readme.exists():
-        raise PackagingError(
-            f"Allowlisted publish source is missing required {SKILL_README}: {skill_readme}"
-        )
-    skill_readme.replace(skill_root / ROOT_README)
-    shutil.copy2(skill_root / ROOT_README, stage_dir / ROOT_README)
+    published_files = _build_publish_mapping(resolved_source_files, repo_root)
+    stage_package_files(stage_dir, published_files)
 
     expected_rel_paths = published_skill_paths(resolved_source_files, repo_root)
     _validate_staged_tree(stage_dir, expected_rel_paths)
-    return skill_root, expected_rel_paths
+    return stage_dir, expected_rel_paths
 
 
 def build_package(
