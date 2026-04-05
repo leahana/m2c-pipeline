@@ -33,16 +33,16 @@ def _run(cmd: list[str], cwd: Path, env: dict | None = None) -> str:
 
 
 def _remote_url() -> str:
-    server = os.environ.get("GITHUB_SERVER_URL", "").rstrip("/")
+    token = os.environ.get("SKILL_PUBLISH_TOKEN", "").strip()
     repository = os.environ.get("GITHUB_REPOSITORY", "")
-    if server and repository:
-        return f"{server}/{repository}.git"
-    # Fallback: read from current repo's origin remote
+    if token and repository:
+        return f"https://x-access-token:{token}@github.com/{repository}.git"
+    # Fallback: read from current repo's origin remote (local dev / dry-run)
     try:
         return _run(["git", "remote", "get-url", "origin"], cwd=REPO_ROOT)
     except subprocess.CalledProcessError as exc:
         raise PublishError(
-            "Cannot determine remote URL. Set GITHUB_SERVER_URL + GITHUB_REPOSITORY "
+            "Cannot determine remote URL. Set SKILL_PUBLISH_TOKEN + GITHUB_REPOSITORY "
             "or ensure 'origin' remote is configured."
         ) from exc
 
