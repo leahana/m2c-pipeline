@@ -55,8 +55,8 @@ jobs:
       - run: |
           STAGE_DIR="$(mktemp -d "$RUNNER_TEMP/m2c-skill-stage-XXXXXX")"
           python3 scripts/ci/publish_skill_branch.py --stage-dir "$STAGE_DIR"
-          test ! -e "$STAGE_DIR/m2c-pipeline/venv"
-          cd "$STAGE_DIR/m2c-pipeline"
+          test ! -e "$STAGE_DIR/venv"
+          cd "$STAGE_DIR"
           ./scripts/bootstrap_env.sh
           ./venv/bin/python -m m2c_pipeline fixtures/minimal-input.md --dry-run --translation-mode fallback
         shell: bash

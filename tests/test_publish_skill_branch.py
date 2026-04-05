@@ -2,12 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.ci.publish_skill_branch import (
-    SKILL_BRANCH_DIR,
-    build_skill_commit,
-    publish,
-    stage_skill_tree,
-)
+from scripts.ci.publish_skill_branch import build_skill_commit, publish, stage_skill_tree
 
 
 EXCLUDED_PREFIXES = ("tests/", ".github/", "policy/", "scripts/ci/")
@@ -52,7 +47,6 @@ def _create_repo(root: Path) -> list[str]:
     return [
         "SKILL.md",
         "SKILL_README.md",
-        "README.md",
         "LICENSE",
         ".env.example",
         "requirements.txt",
@@ -84,7 +78,6 @@ class PublishSkillBranchTests(unittest.TestCase):
         # Must include all allowlisted content
         self.assertIn("SKILL.md", rel_paths)
         self.assertIn("SKILL_README.md", rel_paths)
-        self.assertIn("README.md", rel_paths)
         self.assertIn("LICENSE", rel_paths)
         self.assertIn(".env.example", rel_paths)
         self.assertIn("requirements.txt", rel_paths)
@@ -94,6 +87,7 @@ class PublishSkillBranchTests(unittest.TestCase):
         self.assertIn("evals/offline-dry-run.md", rel_paths)
         self.assertIn("m2c_pipeline/__init__.py", rel_paths)
         self.assertIn("m2c_pipeline/templates/base.py", rel_paths)
+        self.assertNotIn("README.md", rel_paths)
 
         # Must NOT include dev-only files
         for path in rel_paths:
@@ -117,7 +111,8 @@ class PublishSkillBranchTests(unittest.TestCase):
                 }
             expected = set(published_skill_paths(source_files, repo_root))
             self.assertEqual(staged, expected)
-            self.assertNotIn(f"{SKILL_BRANCH_DIR}/SKILL_README.md", staged)
+            self.assertNotIn("SKILL_README.md", staged)
+            self.assertNotIn("m2c-pipeline/README.md", staged)
 
     def test_no_hidden_files_except_env_example(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -155,17 +150,12 @@ class PublishSkillBranchTests(unittest.TestCase):
                 )
                 self.assertIn("skill v9.9.9", log.stdout)
                 readme = subprocess.run(
-                    ["git", "show", f"HEAD:{SKILL_BRANCH_DIR}/README.md"],
-                    capture_output=True, text=True, cwd=stage_dir, check=True,
-                )
-                self.assertEqual(readme.stdout, "# m2c-pipeline\n\nSkill README content.\n")
-                root_readme = subprocess.run(
                     ["git", "show", "HEAD:README.md"],
                     capture_output=True, text=True, cwd=stage_dir, check=True,
                 )
-                self.assertEqual(root_readme.stdout, readme.stdout)
+                self.assertEqual(readme.stdout, "# m2c-pipeline\n\nSkill README content.\n")
                 skill = subprocess.run(
-                    ["git", "show", f"HEAD:{SKILL_BRANCH_DIR}/SKILL.md"],
+                    ["git", "show", "HEAD:SKILL.md"],
                     capture_output=True, text=True, cwd=stage_dir, check=True,
                 )
                 self.assertIn("name: m2c-pipeline", skill.stdout)
@@ -174,19 +164,13 @@ class PublishSkillBranchTests(unittest.TestCase):
                     capture_output=True, text=True, cwd=stage_dir, check=True,
                 )
                 root_entries = ls_tree.stdout.splitlines()
-                self.assertEqual(root_entries, ["README.md", SKILL_BRANCH_DIR])
-                nested_tree = subprocess.run(
-                    ["git", "ls-tree", "--name-only", f"HEAD:{SKILL_BRANCH_DIR}"],
-                    capture_output=True, text=True, cwd=stage_dir, check=True,
-                )
-                nested_entries = nested_tree.stdout.splitlines()
-                self.assertIn("fixtures", nested_entries)
-                self.assertIn("SKILL.md", nested_entries)
-                self.assertIn("README.md", nested_entries)
-                self.assertIn("scripts", nested_entries)
-                self.assertNotIn("SKILL_README.md", nested_entries)
+                self.assertIn("README.md", root_entries)
+                self.assertIn("SKILL.md", root_entries)
+                self.assertIn("fixtures", root_entries)
+                self.assertIn("scripts", root_entries)
+                self.assertIn("m2c_pipeline", root_entries)
+                self.assertNotIn("m2c-pipeline", root_entries)
                 self.assertNotIn("SKILL_README.md", root_entries)
-                self.assertNotIn("SKILL.md", root_entries)
 
     def test_publish_stage_dir_writes_skill_tree_without_git_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -208,7 +192,8 @@ class PublishSkillBranchTests(unittest.TestCase):
                     (stage_dir / "README.md").read_text(encoding="utf-8"),
                     "# m2c-pipeline\n\nSkill README content.\n",
                 )
-                self.assertTrue((stage_dir / SKILL_BRANCH_DIR / "scripts" / "bootstrap_env.sh").exists())
-                self.assertTrue((stage_dir / SKILL_BRANCH_DIR / "fixtures" / "minimal-input.md").exists())
-                self.assertFalse((stage_dir / SKILL_BRANCH_DIR / "tests").exists())
-                self.assertFalse((stage_dir / SKILL_BRANCH_DIR / "SKILL_README.md").exists())
+                self.assertTrue((stage_dir / "scripts" / "bootstrap_env.sh").exists())
+                self.assertTrue((stage_dir / "fixtures" / "minimal-input.md").exists())
+                self.assertFalse((stage_dir / "m2c-pipeline").exists())
+                self.assertFalse((stage_dir / "tests").exists())
+                self.assertFalse((stage_dir / "SKILL_README.md").exists())

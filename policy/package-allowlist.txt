@@ -1,6 +1,5 @@
 SKILL.md
 SKILL_README.md
-README.md
 LICENSE
 .env.example
 requirements.txt

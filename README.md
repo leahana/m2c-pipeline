@@ -31,24 +31,52 @@ python -m m2c_pipeline path/to/input.md
 
 ---
 
-## 📦 Skill 安装（CC Switch）
+## 📦 Skill 安装方式
 
-通过 CC Switch 将此仓库安装为 Claude Code skill：
+`skill` 分支和 GitHub Release 通用压缩包会在每次 Release 后由 CI 同步发布，二者目录结构完全一致，根目录就是可直接执行的入口。
+
+### 1. 通过 CC Switch 安装
 
 1. 打开 CC Switch → Skills → Add Repository
-2. 填入 `leahana/m2c-pipeline`，Branch 填 `skill`
+2. Repository 填 `leahana/m2c-pipeline`，Branch 填 `skill`
 3. 安装后即可在 Claude Code 中使用 `m2c-pipeline` skill
 
-`skill` 分支在每次 Release 时由 CI 自动发布，仅包含 skill 运行所需文件。
+### 2. 通过 GitHub Release 压缩包安装
+
+1. 从 GitHub Release 下载 `m2c-pipeline-generic-v<version>.zip`
+2. 解压后进入解压出来的根目录
+3. 在根目录执行 `./scripts/bootstrap_env.sh`
+
+```bash
+cd m2c-pipeline-generic-v<version>
+./scripts/bootstrap_env.sh
+```
+
+### 3. 直接拉取 `skill` 分支
+
+全新拉取：
+
+```bash
+git clone --branch skill --single-branch https://github.com/leahana/m2c-pipeline.git
+cd m2c-pipeline
+./scripts/bootstrap_env.sh
+```
+
+已有本地仓库时，可以切换到发布态分支：
+
+```bash
+git fetch origin skill
+git switch skill
+```
 
 ---
 
 ## ⚡ 快速开始
 
+无论你当前目录是源码仓库根目录、Release 解压目录，还是直接 checkout 的 `skill` 分支，运行入口都保持一致：
+
 ```bash
-# 1. 克隆 & 安装
-git clone https://github.com/leahana/m2c-pipeline.git
-cd m2c-pipeline
+# 1. 在当前根目录安装依赖
 ./scripts/bootstrap_env.sh
 
 # 2. 配置
@@ -133,10 +161,12 @@ m2c-pipeline/
 ├── .env.example
 ├── AGENTS.md                     # agent 开发指南
 ├── SKILL.md                      # Claude Code skill 规范
-├── SKILL_README.md               # skill 分支专用 README（发布时替换 README.md）
+├── SKILL_README.md               # skill 发布入口源文件（发布时生成唯一 README.md）
 ├── LICENSE
 └── requirements.txt
 ```
+
+发布态（CC Switch / `skill` 分支 / Release zip）会拍平成单层根目录，只保留运行所需文件，并把 `SKILL_README.md` 生成为根目录唯一的 `README.md`。
 
 ---
 
@@ -160,7 +190,6 @@ m2c-pipeline/
 ### 安装依赖
 
 ```bash
-cd m2c-pipeline
 ./scripts/bootstrap_env.sh
 ```
 
@@ -325,7 +354,7 @@ python tests/smoke_test.py --input tests/fixtures/test_input.md --with-image
 2. 从 `dev` 发 PR 到 `main`
 3. `dev -> main` 推荐使用 **merge commit**
 4. `release-please` 在 `main` 上自动创建 release PR
-5. merge release PR 后，自动创建 tag、GitHub Release，并上传通用 zip/sha256 资产
+5. merge release PR 后，自动创建 tag、GitHub Release、通用 zip/sha256 资产，并同步扁平化的 `skill` 分支
 
 ### 约定
 

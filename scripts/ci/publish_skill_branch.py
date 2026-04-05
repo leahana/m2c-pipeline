@@ -14,7 +14,6 @@ if __package__ in {None, ""}:
 
 from scripts.ci.common import REPO_ROOT, load_version
 from scripts.ci.package_generic import (
-    PUBLISHED_SKILL_DIR,
     PackagingError,
     build_published_skill_tree,
     collect_package_files,
@@ -24,10 +23,6 @@ from scripts.ci.package_generic import (
 
 class PublishError(RuntimeError):
     """Raised when skill branch publishing fails."""
-
-
-SKILL_BRANCH_DIR = PUBLISHED_SKILL_DIR
-
 
 def _run(cmd: list[str], cwd: Path, env: dict | None = None) -> str:
     result = subprocess.run(
