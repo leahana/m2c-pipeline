@@ -24,11 +24,13 @@ class PackageGenericTests(unittest.TestCase):
             encoding="utf-8",
         )
         (root / "README.md").write_text("readme\n", encoding="utf-8")
+        (root / "SKILL_README.md").write_text("# m2c-pipeline\n\nSkill README.\n", encoding="utf-8")
         (root / "LICENSE").write_text("license\n", encoding="utf-8")
         (root / ".env.example").write_text("M2C_PROJECT_ID=demo\n", encoding="utf-8")
         (root / "requirements.txt").write_text("Pillow>=10.0.0\n", encoding="utf-8")
         return [
             "SKILL.md",
+            "SKILL_README.md",
             "README.md",
             "LICENSE",
             ".env.example",
@@ -62,6 +64,7 @@ class PackageGenericTests(unittest.TestCase):
                 "m2c-pipeline-generic-v9.9.9/LICENSE",
                 "m2c-pipeline-generic-v9.9.9/README.md",
                 "m2c-pipeline-generic-v9.9.9/SKILL.md",
+                "m2c-pipeline-generic-v9.9.9/SKILL_README.md",
                 "m2c-pipeline-generic-v9.9.9/evals/offline-dry-run.md",
                 "m2c-pipeline-generic-v9.9.9/m2c_pipeline/module.py",
                 "m2c-pipeline-generic-v9.9.9/references/runtime-commands.md",
@@ -79,3 +82,18 @@ class PackageGenericTests(unittest.TestCase):
 
             with self.assertRaises(PackagingError):
                 collect_package_files(repo_root=repo_root, allowlist=allowlist)
+
+    def test_collect_package_files_skips_python_cache_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+            allowlist = self._create_repo(repo_root)
+            (repo_root / "m2c_pipeline" / "__pycache__").mkdir()
+            (repo_root / "m2c_pipeline" / "__pycache__" / "module.cpython-311.pyc").write_bytes(b"pyc")
+            (repo_root / "m2c_pipeline" / "module.pyo").write_bytes(b"pyo")
+
+            files = collect_package_files(repo_root=repo_root, allowlist=allowlist)
+            rel_paths = {f.relative_to(repo_root).as_posix() for f in files}
+
+        self.assertIn("m2c_pipeline/module.py", rel_paths)
+        self.assertNotIn("m2c_pipeline/module.pyo", rel_paths)
+        self.assertNotIn("m2c_pipeline/__pycache__/module.cpython-311.pyc", rel_paths)
