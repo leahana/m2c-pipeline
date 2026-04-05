@@ -10,21 +10,26 @@
 
 ## 快速开始
 
+如果你当前目录已经是 `m2c-pipeline` 源码仓库，直接在仓库根目录执行下面的命令即可；已有
+`./venv` 时可以直接复用。
+
 ```bash
-# 1. 安装依赖
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
+# 1. 在当前源码仓库根目录准备环境
+./scripts/bootstrap_env.sh
 
 # 2. 配置凭据
 cp .env.example .env
 # 编辑 .env，填入 M2C_PROJECT_ID（必填）和 GOOGLE_APPLICATION_CREDENTIALS（推荐）
 
 # 3. 离线验证（不调用云端，推荐先跑一次）
-python -m m2c_pipeline <input.md> --dry-run --translation-mode fallback
+./venv/bin/python -m m2c_pipeline fixtures/minimal-input.md --dry-run --translation-mode fallback
 
 # 4. 正式生成图片
-python -m m2c_pipeline <input.md> --translation-mode vertex --output-dir ./output
+./venv/bin/python -m m2c_pipeline fixtures/minimal-input.md --translation-mode vertex --output-dir ./output
 ```
+
+> 前提条件：POSIX 环境、Python 3.11+，并且 `pip install` 可访问依赖源。
+> agent 首跑顺序固定为：先检查 `./venv/bin/python`，再检查系统 `python3/python`，仍缺失时按 `references/install-python.md` 选择单一路径安装并确认权限；安装后回到 repo-local bootstrap。Windows 上则由 agent 安装 Python 后执行 `python -m venv venv` 和 `.\venv\Scripts\python.exe -m pip install -r requirements.txt`。
 
 ## 常用参数
 

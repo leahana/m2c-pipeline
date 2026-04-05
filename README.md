@@ -49,18 +49,17 @@ python -m m2c_pipeline path/to/input.md
 # 1. 克隆 & 安装
 git clone https://github.com/leahana/m2c-pipeline.git
 cd m2c-pipeline
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
+./scripts/bootstrap_env.sh
 
 # 2. 配置
 cp .env.example .env
 # 编辑 .env，填入 M2C_PROJECT_ID 和 GOOGLE_APPLICATION_CREDENTIALS
 
 # 3. 离线试跑（不调用云端翻译或图片模型）
-python -m m2c_pipeline <input.md> --dry-run --translation-mode fallback
+./venv/bin/python -m m2c_pipeline fixtures/minimal-input.md --dry-run --translation-mode fallback
 
 # 4. 正式生成
-python -m m2c_pipeline <input.md> --translation-mode vertex --output-dir ./output
+./venv/bin/python -m m2c_pipeline fixtures/minimal-input.md --translation-mode vertex --output-dir ./output
 ```
 
 ---
@@ -86,6 +85,8 @@ python -m m2c_pipeline <input.md> --translation-mode vertex --output-dir ./outpu
 
 ```text
 m2c-pipeline/
+├── fixtures/
+│   └── minimal-input.md   # skill 发布态 dry-run 输入
 ├── m2c_pipeline/
 │   ├── __main__.py       # CLI 入口
 │   ├── pipeline.py       # 流水线编排
@@ -126,7 +127,9 @@ m2c-pipeline/
 │   └── skill-contract.json       # skill 合约
 ├── references/                   # skill 参考文档（按需加载）
 ├── evals/                        # skill 评估场景
-├── scripts/ci/                   # CI 校验脚本
+├── scripts/
+│   ├── bootstrap_env.sh          # skill 发布态 POSIX 自举入口
+│   └── ci/                       # CI 校验脚本
 ├── .env.example
 ├── AGENTS.md                     # agent 开发指南
 ├── SKILL.md                      # Claude Code skill 规范
@@ -148,6 +151,7 @@ m2c-pipeline/
 - 🆔 一个可用的 GCP project，并设置 `M2C_PROJECT_ID`
 
 > 本项目只走 **Vertex AI API**，不支持也不需要 Google AI Studio / Gemini Developer API key。
+> 如果你通过 skill 让 agent 负责安装，请让它先按 `references/install-python.md` 选择平台安装路径；系统级 Python 安装完成后，再执行 repo-local bootstrap。
 
 ---
 
@@ -157,9 +161,14 @@ m2c-pipeline/
 
 ```bash
 cd m2c-pipeline
+./scripts/bootstrap_env.sh
+```
+
+Windows（已有兼容 Python 时）的 repo-local bootstrap：
+
+```powershell
 python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
 ### 配置 `.env`
@@ -207,13 +216,13 @@ gcloud auth application-default set-quota-project YOUR_PROJECT_ID
 **离线 dry-run（不调用云端翻译或图片模型，推荐先跑一次）：**
 
 ```bash
-python -m m2c_pipeline tests/fixtures/test_input.md --dry-run --translation-mode fallback
+./venv/bin/python -m m2c_pipeline fixtures/minimal-input.md --dry-run --translation-mode fallback
 ```
 
 **生成图片：**
 
 ```bash
-python -m m2c_pipeline tests/fixtures/test_input.md --translation-mode vertex --output-dir ./output
+./venv/bin/python -m m2c_pipeline fixtures/minimal-input.md --translation-mode vertex --output-dir ./output
 ```
 
 **常用参数：**
@@ -296,7 +305,7 @@ python -m unittest \
 离线 smoke test（无需 GCP 凭据）：
 
 ```bash
-python -m m2c_pipeline tests/fixtures/test_input.md --dry-run --translation-mode fallback
+./venv/bin/python -m m2c_pipeline fixtures/minimal-input.md --dry-run --translation-mode fallback
 ```
 
 手工集成 smoke test（需要真实 Vertex AI 凭据）：
