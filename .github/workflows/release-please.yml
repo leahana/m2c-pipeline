@@ -55,3 +55,7 @@ jobs:
           SHA_PATH="${ZIP_PATH}.sha256"
           gh release upload "${{ steps.release.outputs.tag_name }}" "$ZIP_PATH" "$SHA_PATH" --clobber
         shell: bash
+
+      - name: Publish skill branch
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        run: python3 scripts/ci/publish_skill_branch.py

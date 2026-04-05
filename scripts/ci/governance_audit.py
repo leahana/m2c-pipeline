@@ -112,6 +112,48 @@ def validate_tag_ruleset_payload(ruleset: dict, tag_contract: dict) -> None:
         )
 
 
+def audit_skill_branch_ruleset(api: GitHubApi, owner: str, repo: str, contract: dict) -> None:
+    rulesets_summary = api.get(f"/repos/{owner}/{repo}/rulesets?per_page=100")
+    rulesets = [
+        api.get(f"/repos/{owner}/{repo}/rulesets/{rs['id']}")
+        for rs in rulesets_summary
+    ]
+    skill_contract = contract["skill_branch_ruleset"]
+    expected_target = skill_contract["target"]
+    expected_enforcement = skill_contract["enforcement"]
+    expected_patterns = set(skill_contract["ref_name_include"])
+
+    matches = [
+        rs for rs in rulesets
+        if rs.get("target") == expected_target
+        and rs.get("enforcement") == expected_enforcement
+        and expected_patterns.issubset(
+            set(
+                ((rs.get("conditions", {}) or {}).get("ref_name", {}) or {}).get("include", [])
+            )
+        )
+    ]
+
+    if not matches:
+        raise GovernanceAuditError(
+            f"No matching active skill branch ruleset found for "
+            f"{skill_contract['ref_name_include']!r}."
+        )
+    if len(matches) > 1:
+        raise GovernanceAuditError(
+            f"Expected exactly one matching skill branch ruleset, found {len(matches)}."
+        )
+
+    ruleset = matches[0]
+    rule_types = {rule.get("type") for rule in ruleset.get("rules", []) if rule.get("type")}
+    required_rules = set(skill_contract["required_rules"])
+    if not required_rules.issubset(rule_types):
+        missing = required_rules - rule_types
+        raise GovernanceAuditError(
+            f"Skill branch ruleset is missing required rules: {sorted(missing)!r}."
+        )
+
+
 def audit_tag_ruleset(api: GitHubApi, owner: str, repo: str, contract: dict) -> None:
     rulesets_summary = api.get(f"/repos/{owner}/{repo}/rulesets?per_page=100")
     # List endpoint omits conditions/rules; fetch each ruleset individually.
@@ -139,7 +181,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Audit repository governance settings.")
     parser.add_argument(
         "--mode",
-        choices=["all", "branch-protection", "tag-ruleset"],
+        choices=["all", "branch-protection", "tag-ruleset", "skill-branch-ruleset"],
         default="all",
         help="Subset of audits to run.",
     )
@@ -159,6 +201,9 @@ def main() -> int:
     if args.mode in {"all", "tag-ruleset"}:
         audit_tag_ruleset(api, owner, repo, contract)
         print("Tag ruleset audit passed.")
+    if args.mode in {"all", "skill-branch-ruleset"}:
+        audit_skill_branch_ruleset(api, owner, repo, contract)
+        print("Skill branch ruleset audit passed.")
     return 0
 
 

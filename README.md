@@ -31,6 +31,18 @@ python -m m2c_pipeline path/to/input.md
 
 ---
 
+## 📦 Skill 安装（CC Switch）
+
+通过 CC Switch 将此仓库安装为 Claude Code skill：
+
+1. 打开 CC Switch → Skills → Add Repository
+2. 填入 `leahana/m2c-pipeline`，Branch 填 `skill`
+3. 安装后即可在 Claude Code 中使用 `m2c-pipeline` skill
+
+`skill` 分支在每次 Release 时由 CI 自动发布，仅包含 skill 运行所需文件。
+
+---
+
 ## ⚡ 快速开始
 
 ```bash
@@ -45,10 +57,10 @@ cp .env.example .env
 # 编辑 .env，填入 M2C_PROJECT_ID 和 GOOGLE_APPLICATION_CREDENTIALS
 
 # 3. 离线试跑（不调用云端翻译或图片模型）
-python -m m2c_pipeline tests/fixtures/test_input.md --dry-run --translation-mode fallback
+python -m m2c_pipeline <input.md> --dry-run --translation-mode fallback
 
 # 4. 正式生成
-python -m m2c_pipeline tests/fixtures/test_input.md --translation-mode vertex --output-dir ./output
+python -m m2c_pipeline <input.md> --translation-mode vertex --output-dir ./output
 ```
 
 ---
@@ -271,6 +283,7 @@ python -m unittest \
   tests.test_repo_policy \
   tests.test_release_tag \
   tests.test_skill_spec \
+  tests.test_governance_audit \
   tests.test_m2c_config \
   tests.test_m2c_cli \
   tests.test_m2c_extractor \

@@ -29,3 +29,12 @@ jobs:
       - run: python3 scripts/ci/governance_audit.py --mode tag-ruleset
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_ADMIN_AUDIT_TOKEN }}
+
+  skill-branch-ruleset-audit:
+    name: skill-branch-ruleset-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - run: python3 scripts/ci/governance_audit.py --mode skill-branch-ruleset
+        env:
+          GITHUB_TOKEN: ${{ secrets.REPO_ADMIN_AUDIT_TOKEN }}
