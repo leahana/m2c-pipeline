@@ -22,6 +22,12 @@ SECTION_PATTERN = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 LINK_PATTERN = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 FRONTMATTER_PATTERN = re.compile(r"\A---\s*\n(.*?)\n---\s*\n?", re.DOTALL)
 NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
+REQUIRED_PREFLIGHT_FRAGMENTS = [
+    "Preflight gate:",
+    "Do not run any `python -m m2c_pipeline` command until preflight is complete.",
+    "references/install-python.md",
+    "permission plus network/admin confirmation",
+]
 
 
 def _extract_local_targets(skill_path: Path) -> list[str]:
@@ -100,6 +106,8 @@ def validate_skill_spec(
         if token.lower() in lowered:
             raise ValueError(f"SKILL.md contains banned token: {token}")
 
+    _validate_preflight_gate(text)
+
     for target in _extract_local_targets(skill_path):
         path_part = target.split("#", 1)[0]
         if path_part.startswith("/") or ".." in PurePosixPath(path_part).parts:
@@ -140,6 +148,21 @@ def _validate_frontmatter(frontmatter: dict[str, str], contract: dict) -> None:
     for fragment in contract["description_disallowed_fragments"]:
         if fragment.lower() in lowered_description:
             raise ValueError(f"SKILL.md description contains a disallowed generic fragment: {fragment!r}.")
+
+
+def _validate_preflight_gate(text: str) -> None:
+    for fragment in REQUIRED_PREFLIGHT_FRAGMENTS:
+        if fragment not in text:
+            raise ValueError(f"SKILL.md preflight gate is missing required phrase: {fragment!r}.")
+
+    venv_index = text.find("prefer a compatible `./venv/bin/python`")
+    system_index = text.find("look for a compatible system `python3` or `python`")
+    install_index = text.find("references/install-python.md")
+
+    if min(venv_index, system_index, install_index) < 0:
+        raise ValueError("SKILL.md preflight gate must include venv/system/install decision points.")
+    if not venv_index < system_index < install_index:
+        raise ValueError("SKILL.md preflight gate order must be venv -> system python -> install reference.")
 
 
 def is_allowlisted(rel_path: str, allowlist: list[str]) -> bool:

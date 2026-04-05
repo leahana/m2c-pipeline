@@ -2,13 +2,19 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.ci.publish_skill_branch import SKILL_BRANCH_DIR, build_skill_commit
+from scripts.ci.publish_skill_branch import (
+    SKILL_BRANCH_DIR,
+    build_skill_commit,
+    publish,
+    stage_skill_tree,
+)
 
 
-EXCLUDED_DIRS = {"tests", "scripts", ".github", "policy"}
+EXCLUDED_PREFIXES = ("tests/", ".github/", "policy/", "scripts/ci/")
 
 
 def _create_repo(root: Path) -> list[str]:
+    (root / "fixtures").mkdir()
     (root / "m2c_pipeline" / "templates").mkdir(parents=True)
     (root / "references").mkdir()
     (root / "evals").mkdir()
@@ -19,8 +25,10 @@ def _create_repo(root: Path) -> list[str]:
 
     (root / "m2c_pipeline" / "__init__.py").write_text("", encoding="utf-8")
     (root / "m2c_pipeline" / "templates" / "base.py").write_text("", encoding="utf-8")
+    (root / "fixtures" / "minimal-input.md").write_text("```mermaid\nflowchart LR\nA-->B\n```\n", encoding="utf-8")
     (root / "references" / "runtime-commands.md").write_text("runtime\n", encoding="utf-8")
     (root / "evals" / "offline-dry-run.md").write_text("eval\n", encoding="utf-8")
+    (root / "scripts" / "bootstrap_env.sh").write_text("#!/usr/bin/env sh\n", encoding="utf-8")
     (root / "SKILL.md").write_text(
         "---\nname: m2c-pipeline\n"
         "description: Converts Mermaid diagrams in Markdown into Vertex AI image runs. "
@@ -48,6 +56,8 @@ def _create_repo(root: Path) -> list[str]:
         "LICENSE",
         ".env.example",
         "requirements.txt",
+        "scripts/bootstrap_env.sh",
+        "fixtures/**",
         "references/**",
         "evals/**",
         "m2c_pipeline/**",
@@ -78,6 +88,8 @@ class PublishSkillBranchTests(unittest.TestCase):
         self.assertIn("LICENSE", rel_paths)
         self.assertIn(".env.example", rel_paths)
         self.assertIn("requirements.txt", rel_paths)
+        self.assertIn("fixtures/minimal-input.md", rel_paths)
+        self.assertIn("scripts/bootstrap_env.sh", rel_paths)
         self.assertIn("references/runtime-commands.md", rel_paths)
         self.assertIn("evals/offline-dry-run.md", rel_paths)
         self.assertIn("m2c_pipeline/__init__.py", rel_paths)
@@ -85,28 +97,27 @@ class PublishSkillBranchTests(unittest.TestCase):
 
         # Must NOT include dev-only files
         for path in rel_paths:
-            top = Path(path).parts[0]
-            self.assertNotIn(top, EXCLUDED_DIRS, f"Dev file leaked into skill: {path}")
+            self.assertFalse(path.startswith(EXCLUDED_PREFIXES), f"Dev file leaked into skill: {path}")
 
     def test_staged_tree_matches_allowlist(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             repo_root = Path(tmpdir)
             allowlist = _create_repo(repo_root)
 
-            from scripts.ci.package_generic import collect_package_files, stage_package_files
+            from scripts.ci.package_generic import collect_package_files, published_skill_paths
             source_files = collect_package_files(repo_root=repo_root, allowlist=allowlist)
 
             with tempfile.TemporaryDirectory() as stagedir:
                 stage_dir = Path(stagedir)
-                stage_package_files(repo_root, stage_dir, source_files)
+                stage_skill_tree(repo_root, source_files, stage_dir)
                 staged = {
                     p.relative_to(stage_dir).as_posix()
                     for p in stage_dir.rglob("*")
                     if p.is_file()
                 }
-
-        expected = {f.relative_to(repo_root).as_posix() for f in source_files}
-        self.assertEqual(staged, expected)
+            expected = set(published_skill_paths(source_files, repo_root))
+            self.assertEqual(staged, expected)
+            self.assertNotIn(f"{SKILL_BRANCH_DIR}/SKILL_README.md", staged)
 
     def test_no_hidden_files_except_env_example(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -169,8 +180,35 @@ class PublishSkillBranchTests(unittest.TestCase):
                     capture_output=True, text=True, cwd=stage_dir, check=True,
                 )
                 nested_entries = nested_tree.stdout.splitlines()
+                self.assertIn("fixtures", nested_entries)
                 self.assertIn("SKILL.md", nested_entries)
                 self.assertIn("README.md", nested_entries)
+                self.assertIn("scripts", nested_entries)
                 self.assertNotIn("SKILL_README.md", nested_entries)
                 self.assertNotIn("SKILL_README.md", root_entries)
                 self.assertNotIn("SKILL.md", root_entries)
+
+    def test_publish_stage_dir_writes_skill_tree_without_git_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            repo_root = Path(tmpdir)
+            allowlist = _create_repo(repo_root)
+
+            policy_dir = repo_root / "policy"
+            policy_dir.mkdir(exist_ok=True)
+            (policy_dir / "package-allowlist.txt").write_text(
+                "\n".join(allowlist) + "\n", encoding="utf-8"
+            )
+
+            with tempfile.TemporaryDirectory() as stagedir:
+                stage_dir = Path(stagedir) / "stage"
+                publish(repo_root=repo_root, stage_dir=stage_dir, version="9.9.9")
+
+                self.assertFalse((stage_dir / ".git").exists())
+                self.assertEqual(
+                    (stage_dir / "README.md").read_text(encoding="utf-8"),
+                    "# m2c-pipeline\n\nSkill README content.\n",
+                )
+                self.assertTrue((stage_dir / SKILL_BRANCH_DIR / "scripts" / "bootstrap_env.sh").exists())
+                self.assertTrue((stage_dir / SKILL_BRANCH_DIR / "fixtures" / "minimal-input.md").exists())
+                self.assertFalse((stage_dir / SKILL_BRANCH_DIR / "tests").exists())
+                self.assertFalse((stage_dir / SKILL_BRANCH_DIR / "SKILL_README.md").exists())

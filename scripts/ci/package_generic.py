@@ -29,6 +29,9 @@ class PackagingError(RuntimeError):
 
 EXCLUDED_PACKAGE_PARTS = {"__pycache__"}
 EXCLUDED_PACKAGE_SUFFIXES = {".pyc", ".pyo"}
+PUBLISHED_SKILL_DIR = "m2c-pipeline"
+ROOT_README = "README.md"
+SKILL_README = "SKILL_README.md"
 
 
 def package_basename(version: str | None = None) -> str:
@@ -117,7 +120,10 @@ def _validate_staged_tree(package_root: Path, expected_rel_paths: list[str]) -> 
         if path.is_dir():
             continue
         rel_path = path.relative_to(package_root).as_posix()
-        if rel_path != ".env.example" and any(part.startswith(".") for part in Path(rel_path).parts):
+        if any(
+            part.startswith(".") and part != ".env.example"
+            for part in Path(rel_path).parts
+        ):
             raise PackagingError(f"Hidden staged file is not allowed: {rel_path}")
         if rel_path.startswith("/") or ".." in Path(rel_path).parts:
             raise PackagingError(f"Unsafe staged path detected: {rel_path}")
@@ -127,6 +133,49 @@ def _validate_staged_tree(package_root: Path, expected_rel_paths: list[str]) -> 
         raise PackagingError(
             f"Staged package contents mismatch. Expected {expected_rel_paths!r}, got {discovered!r}"
         )
+
+
+def published_skill_paths(
+    source_files: list[Path],
+    repo_root: Path = REPO_ROOT,
+) -> list[str]:
+    published: list[str] = [ROOT_README]
+    for source_file in source_files:
+        rel_path = relative_posix(source_file, repo_root)
+        if rel_path == SKILL_README:
+            continue
+        published.append(f"{PUBLISHED_SKILL_DIR}/{rel_path}")
+    return published
+
+
+def build_published_skill_tree(
+    repo_root: Path,
+    stage_dir: Path,
+    source_files: list[Path] | None = None,
+    allowlist: list[str] | None = None,
+) -> tuple[Path, list[str]]:
+    if stage_dir.exists():
+        if any(stage_dir.iterdir()):
+            raise PackagingError(f"Stage directory must be empty: {stage_dir}")
+    else:
+        stage_dir.mkdir(parents=True, exist_ok=True)
+
+    resolved_source_files = source_files or collect_package_files(repo_root, allowlist)
+    skill_root = stage_dir / PUBLISHED_SKILL_DIR
+    skill_root.mkdir(parents=True, exist_ok=True)
+    stage_package_files(repo_root, skill_root, resolved_source_files)
+
+    skill_readme = skill_root / SKILL_README
+    if not skill_readme.exists():
+        raise PackagingError(
+            f"Allowlisted publish source is missing required {SKILL_README}: {skill_readme}"
+        )
+    skill_readme.replace(skill_root / ROOT_README)
+    shutil.copy2(skill_root / ROOT_README, stage_dir / ROOT_README)
+
+    expected_rel_paths = published_skill_paths(resolved_source_files, repo_root)
+    _validate_staged_tree(stage_dir, expected_rel_paths)
+    return skill_root, expected_rel_paths
 
 
 def build_package(
@@ -141,14 +190,15 @@ def build_package(
     checksum_path = output_dir / f"{basename}.zip.sha256"
 
     source_files = collect_package_files(repo_root, allowlist)
-    expected_rel_paths = [relative_posix(path, repo_root) for path in source_files]
 
     with tempfile.TemporaryDirectory(prefix="m2c-package-") as temp_dir:
         temp_root = Path(temp_dir)
-        package_root = temp_root / basename
-        package_root.mkdir(parents=True, exist_ok=True)
-        stage_package_files(repo_root, package_root, source_files)
-        _validate_staged_tree(package_root, expected_rel_paths)
+        stage_root = temp_root / "published-skill-tree"
+        _, expected_rel_paths = build_published_skill_tree(
+            repo_root=repo_root,
+            stage_dir=stage_root,
+            source_files=source_files,
+        )
 
         with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             seen_members: set[str] = set()
@@ -157,7 +207,7 @@ def build_package(
                 if member_name in seen_members:
                     raise PackagingError(f"Duplicate archive member detected: {member_name}")
                 seen_members.add(member_name)
-                archive.write(package_root / rel_path, arcname=member_name)
+                archive.write(stage_root / rel_path, arcname=member_name)
 
     verify_archive(archive_path, expected_rel_paths, basename)
 

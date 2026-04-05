@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -14,15 +13,20 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from scripts.ci.common import REPO_ROOT, load_version
-from scripts.ci.package_generic import collect_package_files, stage_package_files
+from scripts.ci.package_generic import (
+    PUBLISHED_SKILL_DIR,
+    PackagingError,
+    build_published_skill_tree,
+    collect_package_files,
+    published_skill_paths,
+)
 
 
 class PublishError(RuntimeError):
     """Raised when skill branch publishing fails."""
 
 
-SKILL_BRANCH_DIR = "m2c-pipeline"
-ROOT_README = "README.md"
+SKILL_BRANCH_DIR = PUBLISHED_SKILL_DIR
 
 
 def _run(cmd: list[str], cwd: Path, env: dict | None = None) -> str:
@@ -56,14 +60,20 @@ def collect_skill_files(repo_root: Path = REPO_ROOT) -> list[Path]:
     return collect_package_files(repo_root=repo_root)
 
 
-def published_skill_paths(source_files: list[Path], repo_root: Path) -> list[str]:
-    published: list[str] = [ROOT_README]
-    for source_file in source_files:
-        rel_path = source_file.relative_to(repo_root).as_posix()
-        if rel_path == "SKILL_README.md":
-            continue
-        published.append(f"{SKILL_BRANCH_DIR}/{rel_path}")
-    return published
+def stage_skill_tree(
+    repo_root: Path,
+    source_files: list[Path],
+    stage_dir: Path,
+) -> Path:
+    try:
+        skill_root, _ = build_published_skill_tree(
+            repo_root=repo_root,
+            stage_dir=stage_dir,
+            source_files=source_files,
+        )
+    except PackagingError as exc:
+        raise PublishError(str(exc)) from exc
+    return skill_root
 
 
 def build_skill_commit(
@@ -72,15 +82,7 @@ def build_skill_commit(
     version: str,
     stage_dir: Path,
 ) -> None:
-    skill_root = stage_dir / SKILL_BRANCH_DIR
-    skill_root.mkdir(parents=True, exist_ok=True)
-    stage_package_files(repo_root, skill_root, source_files)
-
-    # Replace README.md with skill-user-focused SKILL_README.md
-    skill_readme = skill_root / "SKILL_README.md"
-    if skill_readme.exists():
-        skill_readme.replace(skill_root / "README.md")
-    shutil.copy2(skill_root / ROOT_README, stage_dir / ROOT_README)
+    stage_skill_tree(repo_root, source_files, stage_dir)
 
     git_env = {**os.environ, "GIT_AUTHOR_NAME": "github-actions[bot]",
                "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
@@ -107,6 +109,7 @@ def publish(
     repo_root: Path = REPO_ROOT,
     dry_run: bool = False,
     version: str | None = None,
+    stage_dir: Path | None = None,
 ) -> None:
     resolved_version = version or load_version()
     source_files = collect_skill_files(repo_root)
@@ -115,6 +118,11 @@ def publish(
     print(f"Skill branch content for v{resolved_version} ({len(rel_paths)} files):")
     for p in rel_paths:
         print(f"  {p}")
+
+    if stage_dir is not None:
+        stage_skill_tree(repo_root, source_files, stage_dir)
+        print(f"Staged skill tree at: {stage_dir}")
+        return
 
     if dry_run:
         print("Dry-run mode: skipping git push.")
@@ -141,9 +149,18 @@ def main() -> int:
         default=None,
         help="Override version string in commit message.",
     )
+    parser.add_argument(
+        "--stage-dir",
+        default=None,
+        help="Stage the published skill tree into an empty local directory without creating a git repo or pushing.",
+    )
     args = parser.parse_args()
 
-    publish(dry_run=args.dry_run, version=args.version)
+    publish(
+        dry_run=args.dry_run,
+        version=args.version,
+        stage_dir=Path(args.stage_dir) if args.stage_dir else None,
+    )
     return 0
 
 

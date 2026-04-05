@@ -17,7 +17,9 @@ EXPECTED_REQUIRED_CHECKS = [
     "repo-policy",
     "unit-tests",
     "offline-smoke",
+    "skill-bootstrap-smoke",
     "package-dryrun",
+    "published-artifact-isomorphism",
     "required-job-contract",
 ]
 

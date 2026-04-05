@@ -4,6 +4,8 @@ README.md
 LICENSE
 .env.example
 requirements.txt
+scripts/bootstrap_env.sh
+fixtures/**
 references/**
 evals/**
 m2c_pipeline/**
