@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.4.1](https://github.com/leahana/m2c-pipeline/compare/v0.4.0...v0.4.1) (2026-04-05)
+
+
+### Bug Fixes
+
+* preserve skill branch readme layout ([d66a6a7](https://github.com/leahana/m2c-pipeline/commit/d66a6a7513bddb772ef863b7f2f9569f67325d0d))
+* preserve skill branch readme layout ([eb02aa4](https://github.com/leahana/m2c-pipeline/commit/eb02aa4686ba052275c6355498d42f9213b821c6))
+
 ## [0.4.0](https://github.com/leahana/m2c-pipeline/compare/v0.3.1...v0.4.0) (2026-04-05)
 
 
