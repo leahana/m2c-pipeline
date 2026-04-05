@@ -130,7 +130,7 @@ The `skill` branch is the remote-install target for CC Switch users.
 - Keep this project `m2c_pipeline`-only; do not reintroduce alternative backends
 - Treat `README.md` as the user-facing source of truth for setup and operation
 - Treat `SKILL.md` as the agent-oriented operational wrapper
-- Treat `SKILL_README.md` as the skill-branch README; it replaces `README.md` on publish
+- Treat `SKILL_README.md` as the source for the published skill-branch READMEs; it becomes both the branch-root `README.md` and `m2c-pipeline/README.md` on publish
 - Prefer `./venv/bin/python` for all local Python commands when the workspace virtualenv exists
 - Keep all authentication guidance Vertex AI only
 - Treat `.env` plus `GOOGLE_APPLICATION_CREDENTIALS` as the recommended local path

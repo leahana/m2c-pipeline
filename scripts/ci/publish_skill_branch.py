@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -18,6 +19,10 @@ from scripts.ci.package_generic import collect_package_files, stage_package_file
 
 class PublishError(RuntimeError):
     """Raised when skill branch publishing fails."""
+
+
+SKILL_BRANCH_DIR = "m2c-pipeline"
+ROOT_README = "README.md"
 
 
 def _run(cmd: list[str], cwd: Path, env: dict | None = None) -> str:
@@ -51,18 +56,31 @@ def collect_skill_files(repo_root: Path = REPO_ROOT) -> list[Path]:
     return collect_package_files(repo_root=repo_root)
 
 
+def published_skill_paths(source_files: list[Path], repo_root: Path) -> list[str]:
+    published: list[str] = [ROOT_README]
+    for source_file in source_files:
+        rel_path = source_file.relative_to(repo_root).as_posix()
+        if rel_path == "SKILL_README.md":
+            continue
+        published.append(f"{SKILL_BRANCH_DIR}/{rel_path}")
+    return published
+
+
 def build_skill_commit(
     repo_root: Path,
     source_files: list[Path],
     version: str,
     stage_dir: Path,
 ) -> None:
-    stage_package_files(repo_root, stage_dir, source_files)
+    skill_root = stage_dir / SKILL_BRANCH_DIR
+    skill_root.mkdir(parents=True, exist_ok=True)
+    stage_package_files(repo_root, skill_root, source_files)
 
     # Replace README.md with skill-user-focused SKILL_README.md
-    skill_readme = stage_dir / "SKILL_README.md"
+    skill_readme = skill_root / "SKILL_README.md"
     if skill_readme.exists():
-        skill_readme.replace(stage_dir / "README.md")
+        skill_readme.replace(skill_root / "README.md")
+    shutil.copy2(skill_root / ROOT_README, stage_dir / ROOT_README)
 
     git_env = {**os.environ, "GIT_AUTHOR_NAME": "github-actions[bot]",
                "GIT_AUTHOR_EMAIL": "41898282+github-actions[bot]@users.noreply.github.com",
@@ -92,9 +110,9 @@ def publish(
 ) -> None:
     resolved_version = version or load_version()
     source_files = collect_skill_files(repo_root)
-    rel_paths = [f.relative_to(repo_root).as_posix() for f in source_files]
+    rel_paths = published_skill_paths(source_files, repo_root)
 
-    print(f"Skill branch content for v{resolved_version} ({len(source_files)} files):")
+    print(f"Skill branch content for v{resolved_version} ({len(rel_paths)} files):")
     for p in rel_paths:
         print(f"  {p}")
 
