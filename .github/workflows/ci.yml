@@ -45,7 +45,21 @@ jobs:
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       - run: python3 -m pip install -r requirements.txt
-      - run: python3 -m m2c_pipeline tests/fixtures/test_input.md --dry-run --translation-mode fallback
+      - run: python3 -m m2c_pipeline fixtures/minimal-input.md --dry-run --translation-mode fallback
+
+  skill-bootstrap-smoke:
+    name: skill-bootstrap-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - run: |
+          STAGE_DIR="$(mktemp -d "$RUNNER_TEMP/m2c-skill-stage-XXXXXX")"
+          python3 scripts/ci/publish_skill_branch.py --stage-dir "$STAGE_DIR"
+          test ! -e "$STAGE_DIR/m2c-pipeline/venv"
+          cd "$STAGE_DIR/m2c-pipeline"
+          ./scripts/bootstrap_env.sh
+          ./venv/bin/python -m m2c_pipeline fixtures/minimal-input.md --dry-run --translation-mode fallback
+        shell: bash
 
   package-dryrun:
     name: package-dryrun
@@ -53,6 +67,13 @@ jobs:
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       - run: python3 scripts/ci/package_generic.py --output-dir dist
+
+  published-artifact-isomorphism:
+    name: published-artifact-isomorphism
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - run: python3 scripts/ci/check_published_artifact_isomorphism.py
 
   required-job-contract:
     name: required-job-contract

@@ -6,7 +6,9 @@
     "repo-policy",
     "unit-tests",
     "offline-smoke",
+    "skill-bootstrap-smoke",
     "package-dryrun",
+    "published-artifact-isomorphism",
     "required-job-contract"
   ],
   "release_tag_regex": "^v\\d+\\.\\d+\\.\\d+$",
