@@ -21,7 +21,7 @@ python -m m2c_pipeline path/to/input.md
 ## 🎀 特性亮点
 
 - 🔍 **自动提取** — 正则解析 Markdown，支持多个 Mermaid block 批量处理
-- 🌸 **Chiikawa 风格** — Gemini 文本模型理解图结构，生成可爱教育插画提示词；自动按节点类型分配吉伊 / 八千代 / 乌萨奇角色，保证视觉多样性
+- 🌸 **Chiikawa 风格** — Gemini 文本模型理解图结构，生成可爱教育插画提示词；自动按节点类型分配吉伊 / 小八 / 乌萨奇角色，保证视觉多样性
 - 🖼️ **Vertex AI 生图** — 通过 `google-genai` SDK 调用 Gemini 图片模型
 - ⚡ **并发生成** — `ThreadPoolExecutor` 并发，`tqdm` 进度条实时反馈
 - 🔁 **自动重试** — `tenacity` 指数退避，Vertex 调用失败时 Translate 和 Paint 阶段都有保护
