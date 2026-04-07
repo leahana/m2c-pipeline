@@ -3,7 +3,7 @@ import os
 import subprocess
 import sys
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -26,6 +26,15 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout.strip(), __version__)
+
+    def test_runtime_python_311_plus_is_required(self) -> None:
+        stderr = io.StringIO()
+        with patch("m2c_pipeline.__main__._runtime_python_version", return_value=(3, 10)):
+            with redirect_stderr(stderr):
+                code = main([str(FIXTURE_INPUT), "--dry-run", "--translation-mode", "fallback"])
+
+        self.assertEqual(code, 1)
+        self.assertIn("Python 3.11+", stderr.getvalue())
 
     def test_fallback_requires_dry_run(self) -> None:
         with patch("m2c_pipeline.config.load_local_env", return_value=None):
