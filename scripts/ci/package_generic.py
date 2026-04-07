@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -31,11 +32,20 @@ EXCLUDED_PACKAGE_PARTS = {"__pycache__"}
 EXCLUDED_PACKAGE_SUFFIXES = {".pyc", ".pyo"}
 ROOT_README = "README.md"
 SKILL_README = "SKILL_README.md"
+DEFAULT_PACKAGE_NAME = "m2c-pipeline-generic"
+DEFAULT_SKILL_NAME = "m2c-pipeline"
+DEFAULT_SKILL_TITLE = f"# {DEFAULT_SKILL_NAME}"
+SKILL_NAME_PATTERN = re.compile(
+    r"(?m)^name:[ \t]*" + re.escape(DEFAULT_SKILL_NAME) + r"[ \t]*$"
+)
+SKILL_TITLE_PATTERN = re.compile(
+    r"(?m)^" + re.escape(DEFAULT_SKILL_TITLE) + r"[ \t]*$"
+)
 
 
-def package_basename(version: str | None = None) -> str:
+def package_basename(version: str | None = None, package_name: str = DEFAULT_PACKAGE_NAME) -> str:
     resolved_version = version or load_version()
-    return f"m2c-pipeline-generic-v{resolved_version}"
+    return f"{package_name}-v{resolved_version}"
 
 
 def _is_package_file(path: Path, repo_root: Path) -> bool:
@@ -164,6 +174,74 @@ def _validate_staged_tree(package_root: Path, expected_rel_paths: list[str]) -> 
         )
 
 
+def apply_package_identity(
+    package_root: Path,
+    skill_name: str,
+    archive_basename: str | None = None,
+) -> None:
+    skill_path = package_root / "SKILL.md"
+    readme_path = package_root / ROOT_README
+
+    skill_text = skill_path.read_text(encoding="utf-8")
+    updated_skill_text, skill_name_replacements = SKILL_NAME_PATTERN.subn(
+        f"name: {skill_name}",
+        skill_text,
+        count=1,
+    )
+    updated_skill_text, skill_title_replacements = SKILL_TITLE_PATTERN.subn(
+        f"# {skill_name}",
+        updated_skill_text,
+        count=1,
+    )
+    if skill_name_replacements != 1 or skill_title_replacements != 1:
+        raise PackagingError("Could not rewrite SKILL.md identity.")
+    updated_skill_text = updated_skill_text.replace(
+        f"`{DEFAULT_SKILL_NAME}`",
+        f"`{skill_name}`",
+    )
+    skill_path.write_text(updated_skill_text, encoding="utf-8")
+
+    readme_text = readme_path.read_text(encoding="utf-8")
+    updated_readme_text, readme_title_replacements = SKILL_TITLE_PATTERN.subn(
+        f"# {skill_name}",
+        readme_text,
+        count=1,
+    )
+    if readme_title_replacements != 1:
+        raise PackagingError("Could not rewrite README.md identity.")
+    updated_readme_text = updated_readme_text.replace(
+        f"`{DEFAULT_SKILL_NAME}`",
+        f"`{skill_name}`",
+    )
+    if archive_basename is not None:
+        updated_readme_text = updated_readme_text.replace(
+            "m2c-pipeline-generic-v<version>.zip",
+            f"{archive_basename}.zip",
+        )
+    readme_path.write_text(updated_readme_text, encoding="utf-8")
+
+
+def write_archive(
+    archive_path: Path,
+    stage_root: Path,
+    expected_rel_paths: list[str],
+    basename: str,
+) -> None:
+    with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        seen_members: set[str] = set()
+        for rel_path in expected_rel_paths:
+            member_name = f"{basename}/{rel_path}"
+            if member_name in seen_members:
+                raise PackagingError(f"Duplicate archive member detected: {member_name}")
+            seen_members.add(member_name)
+            archive.write(stage_root / rel_path, arcname=member_name)
+
+
+def write_checksum(checksum_path: Path, archive_path: Path) -> None:
+    digest = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+    checksum_path.write_text(f"{digest}  {archive_path.name}\n", encoding="utf-8")
+
+
 def published_skill_paths(
     source_files: list[Path],
     repo_root: Path = REPO_ROOT,
@@ -213,20 +291,10 @@ def build_package(
             stage_dir=stage_root,
             source_files=source_files,
         )
-
-        with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            seen_members: set[str] = set()
-            for rel_path in expected_rel_paths:
-                member_name = f"{basename}/{rel_path}"
-                if member_name in seen_members:
-                    raise PackagingError(f"Duplicate archive member detected: {member_name}")
-                seen_members.add(member_name)
-                archive.write(stage_root / rel_path, arcname=member_name)
+        write_archive(archive_path, stage_root, expected_rel_paths, basename)
 
     verify_archive(archive_path, expected_rel_paths, basename)
-
-    digest = hashlib.sha256(archive_path.read_bytes()).hexdigest()
-    checksum_path.write_text(f"{digest}  {archive_path.name}\n", encoding="utf-8")
+    write_checksum(checksum_path, archive_path)
     return archive_path, checksum_path
 
 

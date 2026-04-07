@@ -360,6 +360,28 @@ python tests/smoke_test.py --input tests/fixtures/test_input.md --with-image
 4. `release-please` 在 `main` 上自动创建 release PR
 5. merge release PR 后，自动创建 tag、GitHub Release、通用 zip/sha256 资产，并同步扁平化的 `skill` 分支
 
+### 本地预览打包
+
+如果只是想在本地安装测试 skill，并且希望每次测试都使用一个独立的 preview skill，可以直接生成一个带时间戳的本地预览包：
+
+```bash
+./venv/bin/python scripts/dev/package_preview.py --output-dir dist
+```
+
+这条命令会生成：
+
+- `dist/m2c-pipeline-preview-v<version>-<YYYYMMDD-HHMMSS>.zip`
+- `dist/m2c-pipeline-preview-v<version>-<YYYYMMDD-HHMMSS>.zip.sha256`
+
+同时把包内的 skill 标识也改成同一个 `m2c-pipeline-preview-v<version>-<YYYYMMDD-HHMMSS>`，这样同一版本重复打包时不会冲突，也便于你区分“这是哪个版本、哪一次打包”的本地测试 skill。
+
+这条本地 preview 打包链路和 CI / release 打包是分开的：
+
+- 本地测试预览包使用 `scripts/dev/package_preview.py`
+- CI / release 仍然使用稳定的 generic 打包路径，产物名保持 `m2c-pipeline-generic-v<version>.zip`
+
+如果本地装了很多旧的 preview skill，可以在测试结束后手动清理不再需要的时间戳版本。
+
 ### 约定
 
 - 功能 PR 和 `dev -> main` PR **不再手工修改** `m2c_pipeline/version.py`
