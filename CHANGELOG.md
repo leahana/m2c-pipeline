@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.6.0](https://github.com/leahana/m2c-pipeline/compare/v0.5.1...v0.6.0) (2026-04-07)
+
+
+### Features
+
+* **cli:** require Python 3.11+ at runtime ([7901b2e](https://github.com/leahana/m2c-pipeline/commit/7901b2e0f3f242cf5bdaeb3b6e8124c32fea14a3))
+* **dev:** add timestamped local preview packager ([f549c1a](https://github.com/leahana/m2c-pipeline/commit/f549c1a9ec28d7f08c62486dcc9212e42252669d))
+* runtime guard, Chiikawa cast, auth runbook, CC Switch contract, preview packager ([b358fc7](https://github.com/leahana/m2c-pipeline/commit/b358fc7d8d40897a1e4b7f9dae9a5aceee9c6fee))
+* **translator:** enforce distinct Chiikawa cast for simple linear flows ([da231b6](https://github.com/leahana/m2c-pipeline/commit/da231b6ba1bcd6c491c5b11d6f267d9c67113cc8))
+
+
+### Documentation
+
+* **cc-switch:** document remote install contract and add CI guard ([ca89912](https://github.com/leahana/m2c-pipeline/commit/ca8991262db8ba55ad4d5c76e146ee623d421cd4))
+* **skill:** add credential readiness phase and vertex auth runbook ([8810dfb](https://github.com/leahana/m2c-pipeline/commit/8810dfbb02807df44479c8a5cc50991a642e6043))
+
 ## [0.5.1](https://github.com/leahana/m2c-pipeline/compare/v0.5.0...v0.5.1) (2026-04-05)
 
 
