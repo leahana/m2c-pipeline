@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.6.1](https://github.com/leahana/m2c-pipeline/compare/v0.6.0...v0.6.1) (2026-04-07)
+
+
+### Documentation
+
+* **readme:** fix Hachiware Chinese name ([f29287a](https://github.com/leahana/m2c-pipeline/commit/f29287a60516cbebf435d13ff72cc12e6a4dcd14))
+* **readme:** fix Hachiware Chinese name from 八千代 to 小八 ([5fec0fe](https://github.com/leahana/m2c-pipeline/commit/5fec0fe4b325072a8a16385c11fd23df70c6b1cd))
+
 ## [0.6.0](https://github.com/leahana/m2c-pipeline/compare/v0.5.1...v0.6.0) (2026-04-07)
 
 
