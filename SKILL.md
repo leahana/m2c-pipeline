@@ -26,11 +26,26 @@ Preflight gate: Do not run any `python -m m2c_pipeline` command until preflight 
 - If `./venv/bin/python` is missing or incompatible, look for a compatible system `python3` or `python`.
 - If neither is available, read [references/install-python.md](references/install-python.md), choose one platform-appropriate path, and ask the user for permission plus network/admin confirmation before running it.
 - Once Python is confirmed: POSIX → `./scripts/bootstrap_env.sh`; Windows → `python -m venv venv` then `.\venv\Scripts\python.exe -m pip install -r requirements.txt`. See [references/runtime-commands.md](references/runtime-commands.md) for exact commands.
+- After bootstrap, make sure the repo has a local `.env`. If it is missing, copy `.env.example` to `.env` before moving on.
+
+**Phase 2.5 — Credential readiness**
+
+- Default the guidance-flow prompt text to English.
+- If the user is clearly a Chinese-speaking user, keep the workflow instructions in English but explicitly instruct the model to reply to the user in Chinese.
+- A good pattern is: keep the operational prompt in English, then append `Reply to the user in Chinese.` when needed.
+- Before any live Vertex AI run, explicitly remind the user that `.env` should define both `M2C_PROJECT_ID` and `GOOGLE_APPLICATION_CREDENTIALS`.
+- If either variable is missing, pause and guide the user instead of guessing values.
+- Default prompt wording: "Before running live Vertex mode, confirm `M2C_PROJECT_ID` and `GOOGLE_APPLICATION_CREDENTIALS`. If you already have both values, I can set them for you."
+- When the user is Chinese-speaking, instruct the model to deliver that same message in Chinese.
+- If the user does not have the values yet, point them to [references/vertex-auth.md](references/vertex-auth.md) and explain the two common paths:
+  - Preferred: put `M2C_PROJECT_ID` and `GOOGLE_APPLICATION_CREDENTIALS` in `.env`
+  - Fallback: use system ADC via `gcloud auth application-default login` and `gcloud auth application-default set-quota-project YOUR_PROJECT_ID`
+- When guiding the user, mention that they may need the Google Cloud / `gcloud` docs and Vertex AI ADC setup docs, and keep the guidance Vertex-only.
 
 **Phase 3 — Choose mode and run**
 
 - **Offline validation** (no credentials needed): POSIX → `./venv/bin/python -m m2c_pipeline fixtures/minimal-input.md --dry-run --translation-mode fallback`; Windows → `.\venv\Scripts\python.exe -m m2c_pipeline fixtures/minimal-input.md --dry-run --translation-mode fallback`
-- **Live generation** (requires Vertex AI credentials): POSIX → `./venv/bin/python -m m2c_pipeline <input.md> --translation-mode vertex --output-dir ./output`; Windows → `.\venv\Scripts\python.exe -m m2c_pipeline <input.md> --translation-mode vertex --output-dir ./output`. Verify credentials first — see [references/vertex-auth.md](references/vertex-auth.md).
+- **Live generation** (requires Vertex AI credentials): first verify that `.env` has both `M2C_PROJECT_ID` and `GOOGLE_APPLICATION_CREDENTIALS`, or that the user explicitly intends to rely on system ADC. If not, stop and guide the user via [references/vertex-auth.md](references/vertex-auth.md). Then run POSIX → `./venv/bin/python -m m2c_pipeline <input.md> --translation-mode vertex --output-dir ./output`; Windows → `.\venv\Scripts\python.exe -m m2c_pipeline <input.md> --translation-mode vertex --output-dir ./output`.
 - **User's own file**: confirm the file contains at least one fenced `mermaid` block before running; if it does not, tell the user rather than proceeding. Then substitute the user's path for `fixtures/minimal-input.md` in the appropriate command above.
 
 **Phase 4 — Report results**
@@ -44,6 +59,8 @@ Preflight gate: Do not run any `python -m m2c_pipeline` command until preflight 
 - Always prefer the repo-local `./venv/bin/python`; fall back to a global interpreter only when bootstrapping is impossible.
 - Never run multiple system installers speculatively. Choose one platform-appropriate path, confirm permissions and network access, then re-run the repo-local bootstrap.
 - Keep authentication Vertex AI only. Prefer `.env` plus `GOOGLE_APPLICATION_CREDENTIALS`; fall back to system ADC. Never add `GOOGLE_API_KEY`, `GEMINI_API_KEY`, or `api_key=` wiring.
+- Do not silently continue into live generation when `M2C_PROJECT_ID` or `GOOGLE_APPLICATION_CREDENTIALS` is missing. Remind the user, offer to help set them, and only proceed once the auth path is clear.
+- Keep internal workflow prompts in English by default; only localize the final user-facing reply when the user is clearly Chinese-speaking.
 - Keep the runtime contract stable around `python -m m2c_pipeline`; this skill runs the existing pipeline, it does not invent new backends.
 - Do not commit `.env`, `venv/`, generated images, `*_FAILED.txt` artifacts, or local output directories.
 
