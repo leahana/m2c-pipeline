@@ -41,6 +41,9 @@ python -m m2c_pipeline path/to/input.md
 2. Repository 填 `leahana/m2c-pipeline`，Branch 填 `skill`
 3. 安装后即可在 Claude Code 中使用 `m2c-pipeline` skill
 
+> 已知限制：基于 `2026-04-06` 对 `CC Switch 3.12.3` 的本地观察，首次安装通常可行，但“删除本地 skill 后重新安装”仍可能失败。
+> 如果遇到这条重装路径的问题，优先回退到“GitHub Release 压缩包安装”或直接拉取 `skill` 分支；兼容契约见 [references/cc-switch-remote-contract.md](references/cc-switch-remote-contract.md)。
+
 ### 2. 通过 GitHub Release 压缩包安装
 
 1. 从 GitHub Release 下载 `m2c-pipeline-generic-v<version>.zip`
@@ -167,6 +170,7 @@ m2c-pipeline/
 ```
 
 发布态（CC Switch / `skill` 分支 / Release zip）会拍平成单层根目录，只保留运行所需文件，并把 `SKILL_README.md` 生成为根目录唯一的 `README.md`。
+远程安装的稳定契约和当前已知限制见 [references/cc-switch-remote-contract.md](references/cc-switch-remote-contract.md)。
 
 ---
 

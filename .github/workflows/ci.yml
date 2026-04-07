@@ -23,6 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
       - run: python3 scripts/ci/check_skill_spec.py
+      - run: python3 scripts/ci/check_cc_switch_remote_contract.py
 
   repo-policy:
     name: repo-policy
