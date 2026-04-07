@@ -41,6 +41,9 @@ python -m m2c_pipeline path/to/input.md
 2. Repository 填 `leahana/m2c-pipeline`，Branch 填 `skill`
 3. 安装后即可在 Claude Code 中使用 `m2c-pipeline` skill
 
+> 已知限制：基于 `2026-04-06` 对 `CC Switch 3.12.3` 的本地观察，首次安装通常可行，但“删除本地 skill 后重新安装”仍可能失败。
+> 如果遇到这条重装路径的问题，优先回退到“GitHub Release 压缩包安装”或直接拉取 `skill` 分支；兼容契约见 [references/cc-switch-remote-contract.md](references/cc-switch-remote-contract.md)。
+
 ### 2. 通过 GitHub Release 压缩包安装
 
 1. 从 GitHub Release 下载 `m2c-pipeline-generic-v<version>.zip`
@@ -167,6 +170,7 @@ m2c-pipeline/
 ```
 
 发布态（CC Switch / `skill` 分支 / Release zip）会拍平成单层根目录，只保留运行所需文件，并把 `SKILL_README.md` 生成为根目录唯一的 `README.md`。
+远程安装的稳定契约和当前已知限制见 [references/cc-switch-remote-contract.md](references/cc-switch-remote-contract.md)。
 
 ---
 
@@ -355,6 +359,28 @@ python tests/smoke_test.py --input tests/fixtures/test_input.md --with-image
 3. `dev -> main` 推荐使用 **merge commit**
 4. `release-please` 在 `main` 上自动创建 release PR
 5. merge release PR 后，自动创建 tag、GitHub Release、通用 zip/sha256 资产，并同步扁平化的 `skill` 分支
+
+### 本地预览打包
+
+如果只是想在本地安装测试 skill，并且希望每次测试都使用一个独立的 preview skill，可以直接生成一个带时间戳的本地预览包：
+
+```bash
+./venv/bin/python scripts/dev/package_preview.py --output-dir dist
+```
+
+这条命令会生成：
+
+- `dist/m2c-pipeline-preview-v<version>-<YYYYMMDD-HHMMSS>.zip`
+- `dist/m2c-pipeline-preview-v<version>-<YYYYMMDD-HHMMSS>.zip.sha256`
+
+同时把包内的 skill 标识也改成同一个 `m2c-pipeline-preview-v<version>-<YYYYMMDD-HHMMSS>`，这样同一版本重复打包时不会冲突，也便于你区分“这是哪个版本、哪一次打包”的本地测试 skill。
+
+这条本地 preview 打包链路和 CI / release 打包是分开的：
+
+- 本地测试预览包使用 `scripts/dev/package_preview.py`
+- CI / release 仍然使用稳定的 generic 打包路径，产物名保持 `m2c-pipeline-generic-v<version>.zip`
+
+如果本地装了很多旧的 preview skill，可以在测试结束后手动清理不再需要的时间戳版本。
 
 ### 约定
 

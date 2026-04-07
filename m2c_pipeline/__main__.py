@@ -12,10 +12,29 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 
 from .config import VALID_ASPECT_RATIOS, VALID_TRANSLATION_MODES, VertexConfig
 from .pipeline import M2CPipeline
 from .version import __version__
+
+MINIMUM_PYTHON = (3, 11)
+
+
+def _runtime_python_version() -> tuple[int, int]:
+    return sys.version_info[:2]
+
+
+def _require_supported_python() -> None:
+    version = _runtime_python_version()
+    if version < MINIMUM_PYTHON:
+        required = ".".join(str(part) for part in MINIMUM_PYTHON)
+        current = ".".join(str(part) for part in version)
+        raise RuntimeError(
+            f"m2c_pipeline requires Python {required}+ at runtime; "
+            f"current interpreter is {current}. "
+            "Recreate the repo-local virtualenv with ./scripts/bootstrap_env.sh."
+        )
 
 
 def _setup_logging(level: str) -> None:
@@ -94,6 +113,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    try:
+        _require_supported_python()
+    except RuntimeError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
     parser = _build_parser()
     args = parser.parse_args(argv)
 

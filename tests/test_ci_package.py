@@ -1,9 +1,13 @@
-import tempfile
 import unittest
+import tempfile
 import zipfile
 from pathlib import Path
 
-from scripts.ci.package_generic import PackagingError, build_package, collect_package_files
+from scripts.ci.package_generic import (
+    PackagingError,
+    build_package,
+    collect_package_files,
+)
 
 
 class PackageGenericTests(unittest.TestCase):
