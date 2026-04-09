@@ -25,7 +25,7 @@ description: Converts Mermaid diagrams in Markdown into Chiikawa-style prompts a
 3. In preflight, prefer a compatible `./venv/bin/python`.
 4. If `./venv/bin/python` is missing or incompatible, look for a compatible system `python3` or `python`.
 5. If Python is still missing, read [install](references/install-python.md), choose one supported install command, and ask the user for permission plus network/admin confirmation before running it.
-6. After Python is available, use `./scripts/bootstrap_env.sh` on POSIX or `python -m venv venv` plus `.\venv\Scripts\python.exe -m pip install -r requirements.txt` on Windows.
+6. After Python is available, use `./scripts/bootstrap_env.sh` on POSIX or `python -m venv venv` plus `.\\venv\\Scripts\\python.exe -m pip install -r requirements.txt` on Windows.
 7. Prefer `./venv/bin/python -m m2c_pipeline fixtures/minimal-input.md --dry-run --translation-mode fallback` for first-run validation.
 8. For user-provided input, keep `python -m m2c_pipeline <input>` as the stable runtime contract behind the repo-local virtualenv.
 9. For live runs, keep Vertex AI enabled and capture PNG outputs or `*_FAILED.txt` artifacts.
@@ -201,3 +201,16 @@ class SkillSpecTests(unittest.TestCase):
         install_step = text.index("[references/install-python.md](references/install-python.md)")
         self.assertLess(venv_step, system_step)
         self.assertLess(system_step, install_step)
+
+    def test_repository_skill_mentions_environment_specific_bootstrap_rules(self) -> None:
+        text = (PROJECT_ROOT / "SKILL.md").read_text(encoding="utf-8")
+
+        for fragment in [
+            "`pyenv`",
+            "`uv`",
+            "`conda base`",
+            "Homebrew, Python.org, distro, or another global Python",
+            "The only stable runtime contract is repo-local `./venv/bin/python`",
+        ]:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, text)
