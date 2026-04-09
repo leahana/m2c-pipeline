@@ -22,9 +22,15 @@ If the current directory contains `m2c_pipeline/`, `requirements.txt`, and `SKIL
 
 Preflight gate: Do not run any `python -m m2c_pipeline` command until preflight is complete.
 
+- First classify the bootstrap interpreter source instead of blindly trusting the first `python3` on `PATH`.
 - prefer a compatible `./venv/bin/python`; if present and compatible, proceed to bootstrap (do not skip it — bootstrap always syncs dependencies even when the venv exists).
-- If `./venv/bin/python` is missing or incompatible, look for a compatible system `python3` or `python`.
-- If neither is available, read [references/install-python.md](references/install-python.md), choose one platform-appropriate path, and ask the user for permission plus network/admin confirmation before running it.
+- If `./venv/bin/python` is missing or incompatible, look for a compatible system `python3` or `python` and classify it before using it:
+  - `pyenv`: preferred user-space host interpreter. If `pyenv which python` resolves to a compatible version, use it as the bootstrap base. If `pyenv` exists but no compatible version is installed, consult [references/install-python.md](references/install-python.md).
+  - Active virtualenv or `.venv`: acceptable bootstrap base when compatible, including uv-created environments. Do not switch the runtime contract to `uv run`; still end at repo-local `./venv`.
+  - Conda: a named project env is an acceptable temporary bootstrap base, but do not anchor this skill to `conda base`, and do not install the project into shared `base`.
+  - Homebrew, Python.org, distro, or another global Python: acceptable fallback when compatible.
+- If the interpreter source is ambiguous, resolve it before bootstrap with `python -c 'import sys; print(sys.executable)'`, `echo $VIRTUAL_ENV`, `echo $CONDA_DEFAULT_ENV`, `pyenv which python`, or `uv python find`.
+- If no compatible interpreter is available, read [references/install-python.md](references/install-python.md), choose one platform-appropriate path, and ask the user for permission plus network/admin confirmation before running it. Prefer existing user-space managers in this order when available: `pyenv`, `uv`, then OS-level installers such as Homebrew, `apt`, `winget`, or `choco`.
 - Once Python is confirmed: POSIX → `./scripts/bootstrap_env.sh`; Windows → `python -m venv venv` then `.\venv\Scripts\python.exe -m pip install -r requirements.txt`. See [references/runtime-commands.md](references/runtime-commands.md) for exact commands.
 - After bootstrap, make sure the repo has a local `.env`. If it is missing, copy `.env.example` to `.env` before moving on.
 
@@ -57,6 +63,8 @@ Preflight gate: Do not run any `python -m m2c_pipeline` command until preflight 
 ## Guardrails
 
 - Always prefer the repo-local `./venv/bin/python`; fall back to a global interpreter only when bootstrapping is impossible.
+- The only stable runtime contract is repo-local `./venv/bin/python` or `.\venv\Scripts\python.exe`; managers like `pyenv`, `uv`, `conda`, and Homebrew only provide the bootstrap interpreter.
+- Avoid `conda base` as a default bootstrap source. Prefer `pyenv`, uv-managed Python, a named Conda env, or another compatible global interpreter instead.
 - Never run multiple system installers speculatively. Choose one platform-appropriate path, confirm permissions and network access, then re-run the repo-local bootstrap.
 - Keep authentication Vertex AI only. Prefer `.env` plus `GOOGLE_APPLICATION_CREDENTIALS`; fall back to system ADC. Never add `GOOGLE_API_KEY`, `GEMINI_API_KEY`, or `api_key=` wiring.
 - Do not silently continue into live generation when `M2C_PROJECT_ID` or `GOOGLE_APPLICATION_CREDENTIALS` is missing. Remind the user, offer to help set them, and only proceed once the auth path is clear.
@@ -81,4 +89,7 @@ Preflight gate: Do not run any `python -m m2c_pipeline` command until preflight 
 - [evals/paint-failure-recovery.md](evals/paint-failure-recovery.md) — verify `*_FAILED.txt` handling when image generation fails.
 - [evals/user-provided-input.md](evals/user-provided-input.md) — verify the agent correctly handles a user-provided Markdown file.
 - [evals/reuse-existing-venv.md](evals/reuse-existing-venv.md) — verify the agent reuses a healthy venv without recreating it, while still running repo-local bootstrap.
+- [evals/install-python-pyenv.md](evals/install-python-pyenv.md) — verify the agent prefers `pyenv` when it is already available but lacks a compatible version.
+- [evals/install-python-uv.md](evals/install-python-uv.md) — verify the agent can use `uv` as a no-admin Python installation path before falling back to OS package managers.
+- [evals/avoid-conda-base.md](evals/avoid-conda-base.md) — verify the agent does not anchor the repo runtime to shared `conda base`.
 - [evals/install-python-macos.md](evals/install-python-macos.md), [evals/install-python-ubuntu.md](evals/install-python-ubuntu.md), [evals/install-python-windows.md](evals/install-python-windows.md) — verify platform-specific Python installation choices.

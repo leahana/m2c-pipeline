@@ -6,8 +6,10 @@
 - Preflight gate: do not run `python -m m2c_pipeline` commands until Python compatibility checks and bootstrap are complete.
 - Preflight order:
   - Prefer compatible `./venv/bin/python`
-  - Else check compatible system `python3`/`python`
+  - Else check compatible system `python3`/`python` and classify the source: `pyenv` -> active venv / uv-managed env -> named Conda env -> Homebrew / Python.org / distro Python
+  - Avoid `conda base` as the default bootstrap anchor; use it only if the user explicitly wants that tradeoff
   - Else read `references/install-python.md`, choose one platform path, and ask for permission plus network/admin confirmation
+  - When installing a new interpreter, prefer existing user-space managers first: `pyenv`, then `uv`, then platform package managers
 - Default POSIX bootstrap entry point:
   - `./scripts/bootstrap_env.sh`
 - Default Windows repo-local bootstrap:

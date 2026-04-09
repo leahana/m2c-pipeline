@@ -64,6 +64,16 @@ cp .env.example .env
 
 > 前提条件：POSIX 环境、Python 3.11+，`pip install` 可访问依赖源。
 
+## Python 环境选择规则
+
+这个 skill 最终一律运行在 repo-local `./venv` 上；外部 Python 只负责给 `./scripts/bootstrap_env.sh` 提供一个可用的启动解释器。
+
+- `pyenv`：优先复用，适合作为用户态、干净的 bootstrap 来源。
+- `uv`：可以提供 Python 或临时 `.venv`，但本项目不切到 `uv run`；仍然会回到 repo-local `./venv`。
+- Conda：命名环境可以临时借来 bootstrap；不建议把本项目绑定到共享 `conda base`。
+- Homebrew / Python.org / 系统 Python：只要版本兼容，也可以作为 bootstrap 来源。
+- 完全没有兼容 Python 时：优先看是否已有 `pyenv` 或 `uv`，再退到 Homebrew / `apt` / `winget` 这类平台安装路径。
+
 ## 使用自己的文件
 
 你的 Markdown 文件只需要包含至少一个 ` ```mermaid ` 代码块，即可作为输入。
