@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.6.2](https://github.com/leahana/m2c-pipeline/compare/v0.6.1...v0.6.2) (2026-04-09)
+
+
+### Documentation
+
+* clarify python bootstrap selection ([4df94d6](https://github.com/leahana/m2c-pipeline/commit/4df94d6f050f274e1ff07a4bb182ab8514d32215))
+* clarify python bootstrap selection ([b05c5a1](https://github.com/leahana/m2c-pipeline/commit/b05c5a16b25ede513b9bf92535fc47371260a5a2))
+
 ## [0.6.1](https://github.com/leahana/m2c-pipeline/compare/v0.6.0...v0.6.1) (2026-04-07)
 
 
