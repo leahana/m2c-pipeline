@@ -22,6 +22,7 @@ VALID_ASPECT_RATIOS = (
     "21:9",
 )
 VALID_TRANSLATION_MODES = ("vertex", "fallback")
+VALID_OUTPUT_FORMATS = ("png", "webp")
 
 
 def _parse_dotenv_line(line: str) -> Optional[Tuple[str, str]]:
@@ -105,6 +106,8 @@ class VertexConfig:
 
     # === Pipeline ===
     output_dir: str = "./output"
+    output_format: str = "webp"
+    webp_quality: int = 85
     template_name: str = "chiikawa"
 
     # === Concurrency ===
@@ -133,6 +136,8 @@ class VertexConfig:
             image_model=os.environ.get("M2C_IMAGE_MODEL", "gemini-3.1-flash-image-preview"),
             aspect_ratio=os.environ.get("M2C_ASPECT_RATIO", "1:1"),
             output_dir=os.environ.get("M2C_OUTPUT_DIR", "./output"),
+            output_format=os.environ.get("M2C_OUTPUT_FORMAT", "webp"),
+            webp_quality=int(os.environ.get("M2C_WEBP_QUALITY", "85")),
             template_name=os.environ.get("M2C_TEMPLATE", "chiikawa"),
             max_workers=int(os.environ.get("M2C_MAX_WORKERS", "2")),
             request_timeout=int(os.environ.get("M2C_REQUEST_TIMEOUT", "600")),
@@ -163,6 +168,16 @@ class VertexConfig:
             raise ValueError(
                 f"Invalid translation_mode '{self.translation_mode}'. "
                 f"Must be one of: {sorted(VALID_TRANSLATION_MODES)}"
+            )
+        if self.output_format not in VALID_OUTPUT_FORMATS:
+            raise ValueError(
+                f"Invalid output_format '{self.output_format}'. "
+                f"Must be one of: {sorted(VALID_OUTPUT_FORMATS)}"
+            )
+        if not 0 <= self.webp_quality <= 100:
+            raise ValueError(
+                f"Invalid webp_quality '{self.webp_quality}'. "
+                "Must be between 0 and 100."
             )
         if self.translation_mode == "fallback":
             if not dry_run:

@@ -1,6 +1,6 @@
 ---
 name: m2c-pipeline
-description: Converts Mermaid diagrams in Markdown into Chiikawa-style illustrated PNG images via the Vertex AI backend. Use when the user wants to generate or dry-run images from Mermaid fenced blocks in a Markdown file. Do not use when the task is general Markdown editing, authoring Mermaid syntax without execution, or any Gemini API-key workflow.
+description: Converts Mermaid diagrams in Markdown into Chiikawa-style illustrated images (WebP by default, PNG via --output-format=png) via the Vertex AI backend. Use when the user wants to generate or dry-run images from Mermaid fenced blocks in a Markdown file. Do not use when the task is general Markdown editing, authoring Mermaid syntax without execution, or any Gemini API-key workflow.
 ---
 
 # m2c-pipeline
@@ -57,7 +57,7 @@ Preflight gate: Do not run any `python -m m2c_pipeline` command until preflight 
 **Phase 4 — Report results**
 
 - Dry-run: report the prompt generation flow.
-- Live: report the generated PNG paths and embedded metadata.
+- Live: report the generated image paths (WebP by default; each has a `.metadata.json` sidecar) and note any `*_FAILED.txt` artifacts. For PNG output (`--output-format=png`), metadata is embedded directly in the PNG.
 - Failure: surface any `*_FAILED.txt` artifact and consult [references/failure-recovery.md](references/failure-recovery.md).
 
 ## Guardrails
@@ -80,7 +80,7 @@ Preflight gate: Do not run any `python -m m2c_pipeline` command until preflight 
 - [references/install-python.md](references/install-python.md) — platform-specific Python install when no compatible interpreter is found.
 - [references/vertex-auth.md](references/vertex-auth.md) — credential configuration (`.env`, ADC) and Vertex AI auth troubleshooting.
 - [references/failure-recovery.md](references/failure-recovery.md) — handling run failures and `*_FAILED.txt` recovery artifacts.
-- [references/input-output-boundaries.md](references/input-output-boundaries.md) — input format requirements, output file naming, and PNG metadata fields.
+- [references/input-output-boundaries.md](references/input-output-boundaries.md) — input format requirements, output file naming, sidecar metadata (WebP) and embedded metadata (PNG), and run artifact layout.
 
 ### Validation Evals
 

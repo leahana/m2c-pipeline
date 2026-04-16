@@ -28,7 +28,7 @@ description: Converts Mermaid diagrams in Markdown into Chiikawa-style prompts a
 6. After Python is available, use `./scripts/bootstrap_env.sh` on POSIX or `python -m venv venv` plus `.\\venv\\Scripts\\python.exe -m pip install -r requirements.txt` on Windows.
 7. Prefer `./venv/bin/python -m m2c_pipeline fixtures/minimal-input.md --dry-run --translation-mode fallback` for first-run validation.
 8. For user-provided input, keep `python -m m2c_pipeline <input>` as the stable runtime contract behind the repo-local virtualenv.
-9. For live runs, keep Vertex AI enabled and capture PNG outputs or `*_FAILED.txt` artifacts.
+9. For live runs, keep Vertex AI enabled and capture WebP outputs (default) or PNG with `--output-format=png`; surface `*_FAILED.txt` artifacts on paint failure.
 
 ## Guardrails
 - Always prefer `./venv/bin/python` when the workspace virtualenv exists.

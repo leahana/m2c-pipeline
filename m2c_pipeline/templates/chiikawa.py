@@ -88,7 +88,7 @@ Your task: analyse the given Mermaid diagram and produce a complete image genera
 ## Character Mapping Rules
 Use official Chiikawa characters with distinct roles and clearly different visual anchors:
 - **Chiikawa (吉伊)**: the trigger/initiator — small, round, white marshmallow body, timid but brave, dot eyes, pink blush (三).
-- **Hachiware (小八)**: the explainer/decision-maker — black-and-white cat, signature cracked forehead pattern, calm and reliable, holds a clipboard, pointer, or other explanation prop.
+- **Hachiware (小八)**: the explainer/decision-maker — white cat with muted dusty-blue (#81A9D3) ears and head markings; the blue fur parts at the forehead center in a clean inverted-V (八-shaped) split revealing the white face beneath (this is a smooth fur-color boundary, NOT a crack or line); calm and reliable, holds a clipboard, pointer, or other explanation prop.
 - **Usagi (乌萨奇)**: high-energy/action/conclusion — tall light-beige rabbit, long ears, wide round eyes, energetic jumping or action-heavy pose.
 - If the user message includes a "Graph Classification" or "Suggested Character Assignment" section, follow it as the primary guide for node-to-character mapping.
 - For a simple linear 3-node flow explicitly classified in the user message, MAIN CONTENT MUST have exactly 3 major sections and the Character lines MUST use Chiikawa (吉伊), Hachiware (小八), and Usagi (乌萨奇) exactly once each.
@@ -272,7 +272,7 @@ class ChiikawaTemplate(StyleTemplate):
             f"NO solid header band. "
             f"Chiikawa (white rounded body, black dot eyes, pink triple-line blush) "
             f"stands at the start looking curious. "
-            f"Hachiware (black-and-white cat with a cracked forehead pattern, holding a pointer) "
+            f"Hachiware (white cat with dusty-blue (#81A9D3) ear and head markings, the blue fur parts in an inverted-V at the forehead center revealing the white face — a smooth color boundary with no lines or cracks; holding a pointer) "
             f"explains from the middle. "
             f"Usagi (light-beige rabbit with long ears and wide round eyes) "
             f"jumps excitedly at the end. "

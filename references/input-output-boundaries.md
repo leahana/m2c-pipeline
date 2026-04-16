@@ -4,7 +4,7 @@
 
 - A Markdown file with one or more fenced `mermaid` code blocks.
 - Any diagram type is supported — the extractor matches any ` ```mermaid ` block regardless of diagram type. The diagram type is lowercased when stored (e.g. `sequencediagram`, `classdiagram`, `flowchart`).
-- Optional CLI overrides: `--template`, `--aspect-ratio`, `--output-dir`, `--max-workers`, `--log-level`, `--translation-mode`, `--dry-run`.
+- Optional CLI overrides: `--template`, `--aspect-ratio`, `--output-dir`, `--output-format` (`webp` default, or `png`), `--webp-quality` (0–100, default 85), `--max-workers`, `--log-level`, `--translation-mode`, `--dry-run`.
 
 **Minimal input example** (`fixtures/minimal-input.md`):
 
@@ -26,9 +26,20 @@ flowchart LR
 
 ## Live Output
 
-- PNG files written to the output directory (default `./output`).
-- **Filename format**: `diagram_YYYYMMDD_HHMMSS_NN.png` where `NN` is the zero-padded block index.
-- Each PNG has embedded metadata text chunks (readable with PIL or `exiftool`):
+Images are written to the output directory (default `./output`).
+
+### Default: WebP output
+
+- **Filename format**: `diagram_YYYYMMDD_HHMMSS_NN.webp` where `NN` is the zero-padded block index.
+- Metadata is written to a sidecar file: `diagram_YYYYMMDD_HHMMSS_NN.metadata.json` (same stem, `.metadata.json` suffix).
+- Sidecar write failure is treated as a storage error; the run is marked failed for that block.
+
+### PNG output (`--output-format=png`)
+
+- **Filename format**: `diagram_YYYYMMDD_HHMMSS_NN.png`
+- Metadata is embedded as PNG text chunks (readable with PIL or `exiftool`); no sidecar file is written.
+
+### Metadata fields (both formats)
 
 | Field | Content |
 |-------|---------|
@@ -37,6 +48,28 @@ flowchart LR
 | `generated_at` | ISO 8601 UTC timestamp |
 | `block_index` | Block position in the source document (0-based) |
 | `diagram_type` | Detected diagram type, lowercased (e.g. `flowchart`, `sequencediagram`, `classdiagram`) |
+| `output_format` | `webp` or `png` |
+| `image_model` | Image generation model name |
+
+### Run artifacts (`_runs/`)
+
+Each run writes a self-contained archive under `output_dir/_runs/<run_id>/`:
+
+```
+_runs/<run_id>/
+  run.json                          # run-level manifest (status, config snapshot, block summaries)
+  logs/run.log                      # full run log
+  input.md                          # snapshot of the input file
+  blocks/<block_dir>/
+    manifest.json                   # block-level manifest
+    mermaid.mmd                     # extracted Mermaid source
+    prompt.txt                      # final image prompt
+    translation-request.txt         # Gemini translation request (vertex mode only)
+    translation-response.txt        # Gemini translation response (vertex mode only)
+    result.<ext>                    # hard-link or copy of the output image (webp or png)
+    result.metadata.json            # hard-link of the sidecar (WebP only)
+    error.txt                       # traceback on failure
+```
 
 ## Failure Output
 

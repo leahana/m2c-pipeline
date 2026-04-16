@@ -1,9 +1,11 @@
 """
-Image storage with PNG metadata writing for m2c_pipeline.
+Image storage and debug metadata persistence for m2c_pipeline.
 """
 
+import json
 import logging
 from datetime import datetime, timezone
+from io import BytesIO
 from pathlib import Path
 
 from .config import VertexConfig
@@ -13,10 +15,13 @@ logger = logging.getLogger(__name__)
 
 
 class ImageStorage:
-    """Save generated images to disk with embedded PNG metadata."""
+    """Save generated images to disk with format-aware debug metadata."""
 
     def __init__(self, config: VertexConfig) -> None:
+        self._config = config
         self._output_dir = Path(config.output_dir)
+        self._output_format = config.output_format
+        self._webp_quality = config.webp_quality
         self._output_dir.mkdir(parents=True, exist_ok=True)
 
     def save(
@@ -24,33 +29,42 @@ class ImageStorage:
         image_bytes: bytes,
         source_block: MermaidBlock,
         prompt_text: str,
+        *,
+        aspect_ratio: str | None = None,
     ) -> Path:
-        """Save image bytes as PNG with metadata. Returns the saved file path.
+        """Save image bytes in the configured output format.
 
-        Metadata written into PNG chunks:
-          - mermaid_source: original mermaid code
-          - image_prompt:   the prompt used
-          - generated_at:   ISO 8601 UTC timestamp
-          - block_index:    position in the source document
-          - diagram_type:   mermaid diagram type
+        PNG output keeps embedded text chunks for backwards compatibility.
+        WebP output writes a ``.metadata.json`` sidecar next to the image.
         """
-        filename = self._generate_filename(source_block)
-        output_path = self._output_dir / filename
+        from PIL import Image
 
-        output_path.write_bytes(image_bytes)
+        generated_at = datetime.now(timezone.utc).isoformat()
+        filename = self._generate_filename(source_block, self._output_format)
+        output_path = self._output_dir / filename
+        debug_metadata = self._build_debug_metadata(
+            source_block=source_block,
+            prompt_text=prompt_text,
+            generated_at=generated_at,
+            image_filename=output_path.name,
+            aspect_ratio=aspect_ratio,
+        )
+
+        with Image.open(BytesIO(image_bytes)) as image:
+            debug_metadata["source_image_format"] = (image.format or "unknown").lower()
+            debug_metadata["source_image_bytes"] = len(image_bytes)
+            self._save_image(output_path, image)
 
         try:
-            self._write_metadata(
-                image_path=output_path,
-                mermaid_source=source_block.source,
-                prompt_text=prompt_text,
-                block_index=source_block.index,
-                diagram_type=source_block.diagram_type,
-            )
+            self._persist_debug_metadata(output_path, debug_metadata)
         except Exception as exc:
+            if self._output_format == "webp":
+                # Sidecar JSON is the only metadata carrier for WebP — treat
+                # a write failure as a storage error so callers surface it.
+                raise
             logger.warning(
-                "Failed to write PNG metadata for %s: %s. "
-                "Image is saved but without metadata.",
+                "Failed to write debug metadata for %s: %s. "
+                "Image is saved but debug metadata may be incomplete.",
                 output_path,
                 exc,
             )
@@ -81,26 +95,90 @@ class ImageStorage:
         return output_path
 
     @staticmethod
-    def _generate_filename(block: MermaidBlock) -> str:
+    def _generate_filename(block: MermaidBlock, output_format: str) -> str:
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        return f"diagram_{timestamp}_{block.index:02d}.png"
+        return f"diagram_{timestamp}_{block.index:02d}.{output_format}"
+
+    def _build_debug_metadata(
+        self,
+        *,
+        source_block: MermaidBlock,
+        prompt_text: str,
+        generated_at: str,
+        image_filename: str,
+        aspect_ratio: str | None,
+    ) -> dict[str, object]:
+        metadata: dict[str, object] = {
+            "mermaid_source": source_block.source,
+            "image_prompt": prompt_text,
+            "generated_at": generated_at,
+            "block_index": source_block.index,
+            "diagram_type": source_block.diagram_type,
+            "line_number": source_block.line_number,
+            "image_model": self._config.image_model,
+            "template_name": self._config.template_name,
+            "translation_mode": self._config.translation_mode,
+            "output_format": self._output_format,
+            "image_file": image_filename,
+        }
+        if aspect_ratio is not None:
+            metadata["aspect_ratio"] = aspect_ratio
+        if self._output_format == "webp":
+            metadata["webp_quality"] = self._webp_quality
+        return metadata
+
+    def _save_image(self, output_path: Path, image) -> None:
+        normalized = self._normalize_image_mode(image)
+        if self._output_format == "png":
+            normalized.save(output_path, format="PNG")
+            return
+        normalized.save(
+            output_path,
+            format="WEBP",
+            quality=self._webp_quality,
+            method=6,
+        )
+
+    def _persist_debug_metadata(
+        self,
+        image_path: Path,
+        debug_metadata: dict[str, object],
+    ) -> None:
+        if self._output_format == "png":
+            self._write_png_metadata(image_path, debug_metadata)
+            return
+        debug_metadata["output_image_bytes"] = image_path.stat().st_size
+        self._write_sidecar_metadata(image_path, debug_metadata)
 
     @staticmethod
-    def _write_metadata(
+    def _normalize_image_mode(image):
+        has_alpha = "A" in image.getbands() or "transparency" in image.info
+        target_mode = "RGBA" if has_alpha else "RGB"
+        if image.mode != target_mode:
+            return image.convert(target_mode)
+        return image
+
+    @staticmethod
+    def _write_png_metadata(
         image_path: Path,
-        mermaid_source: str,
-        prompt_text: str,
-        block_index: int,
-        diagram_type: str,
+        debug_metadata: dict[str, object],
     ) -> None:
         """Embed metadata into PNG using PIL PngInfo text chunks."""
         from PIL import Image, PngImagePlugin
 
-        img = Image.open(image_path)
-        meta = PngImagePlugin.PngInfo()
-        meta.add_text("mermaid_source", mermaid_source)
-        meta.add_text("image_prompt", prompt_text)
-        meta.add_text("generated_at", datetime.now(timezone.utc).isoformat())
-        meta.add_text("block_index", str(block_index))
-        meta.add_text("diagram_type", diagram_type)
-        img.save(image_path, format="PNG", pnginfo=meta)
+        with Image.open(image_path) as image:
+            meta = PngImagePlugin.PngInfo()
+            for key, value in debug_metadata.items():
+                meta.add_text(key, str(value))
+            image.save(image_path, format="PNG", pnginfo=meta)
+
+    @staticmethod
+    def _write_sidecar_metadata(
+        image_path: Path,
+        debug_metadata: dict[str, object],
+    ) -> None:
+        metadata_path = image_path.with_suffix(".metadata.json")
+        metadata_path.write_text(
+            json.dumps(debug_metadata, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
