@@ -22,9 +22,9 @@ description: Converts Mermaid diagrams in Markdown into Chiikawa-style prompts a
 ## Workflow
 1. Use the current source workspace when it already contains `m2c_pipeline/`, `requirements.txt`, and `SKILL.md`.
 2. Preflight gate: Do not run any `python -m m2c_pipeline` command until preflight is complete.
-3. In preflight, prefer a compatible `./venv/bin/python`.
-4. If `./venv/bin/python` is missing or incompatible, look for a compatible system `python3` or `python`.
-5. If Python is still missing, read [install](references/install-python.md), choose one supported install command, and ask the user for permission plus network/admin confirmation before running it.
+3. Check `./venv/bin/python` first; if healthy, proceed directly to bootstrap.
+4. If missing, read passive signals ($PYENV_ROOT, $UV_HOME, $VIRTUAL_ENV, $CONDA_DEFAULT_ENV) and present a personalized prompt.
+5. If no compatible Python exists, read [install](references/install-python.md), choose one supported install command, and ask the user for permission plus network/admin confirmation before running it.
 6. After Python is available, use `./scripts/bootstrap_env.sh` on POSIX or `python -m venv venv` plus `.\\venv\\Scripts\\python.exe -m pip install -r requirements.txt` on Windows.
 7. Prefer `./venv/bin/python -m m2c_pipeline fixtures/minimal-input.md --dry-run --translation-mode fallback` for first-run validation.
 8. For user-provided input, keep `python -m m2c_pipeline <input>` as the stable runtime contract behind the repo-local virtualenv.
@@ -194,13 +194,13 @@ class SkillSpecTests(unittest.TestCase):
             text,
         )
         self.assertIn("[references/install-python.md](references/install-python.md)", text)
-        self.assertIn("ask the user for permission plus network/admin confirmation", text)
+        self.assertIn("permission plus network/admin confirmation", text)
 
-        venv_step = text.index("prefer a compatible `./venv/bin/python`")
-        system_step = text.index("look for a compatible system `python3` or `python`")
+        venv_step = text.index("Check `./venv/bin/python`")
+        passive_step = text.index("passive signals")
         install_step = text.index("[references/install-python.md](references/install-python.md)")
-        self.assertLess(venv_step, system_step)
-        self.assertLess(system_step, install_step)
+        self.assertLess(venv_step, passive_step)
+        self.assertLess(passive_step, install_step)
 
     def test_repository_skill_mentions_environment_specific_bootstrap_rules(self) -> None:
         text = (PROJECT_ROOT / "SKILL.md").read_text(encoding="utf-8")
@@ -209,7 +209,6 @@ class SkillSpecTests(unittest.TestCase):
             "`pyenv`",
             "`uv`",
             "`conda base`",
-            "Homebrew, Python.org, distro, or another global Python",
             "The only stable runtime contract is repo-local `./venv/bin/python`",
         ]:
             with self.subTest(fragment=fragment):
