@@ -13,6 +13,7 @@ Vertex AI:
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -132,10 +133,19 @@ def generate_first_image(prompt) -> Path:
     image_bytes = painter.paint(prompt)
     image_path = storage.save(image_bytes, prompt.source_block, prompt.prompt_text)
 
-    with Image.open(image_path) as image:
+    if image_path.suffix == ".png":
+        with Image.open(image_path) as image:
+            for key in ("mermaid_source", "image_prompt", "generated_at"):
+                if key not in image.info:
+                    raise RuntimeError(f"PNG metadata missing required key: {key}")
+    else:
+        metadata_path = image_path.with_suffix(".metadata.json")
+        if not metadata_path.exists():
+            raise RuntimeError(f"Metadata sidecar missing: {metadata_path}")
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         for key in ("mermaid_source", "image_prompt", "generated_at"):
-            if key not in image.info:
-                raise RuntimeError(f"PNG metadata missing required key: {key}")
+            if key not in metadata:
+                raise RuntimeError(f"Metadata sidecar missing required key: {key}")
 
     logger.info("Image saved to %s", image_path)
     return image_path
