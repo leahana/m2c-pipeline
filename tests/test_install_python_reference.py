@@ -16,7 +16,8 @@ class InstallPythonReferenceTests(unittest.TestCase):
                 "pyenv",
                 [
                     "### pyenv",
-                    "`command -v pyenv`",
+                    "`$PYENV_ROOT` is set",
+                    "`pyenv which python`",
                     "`pyenv install 3.12.13`",
                 ],
             ),
@@ -24,16 +25,16 @@ class InstallPythonReferenceTests(unittest.TestCase):
                 "uv",
                 [
                     "### uv",
-                    "`command -v uv`",
-                    "`uv python install 3.12`",
+                    "`$UV_HOME` is set",
                     "`uv python find 3.12`",
+                    "`uv python install 3.12`",
                 ],
             ),
             (
                 "conda",
                 [
                     "### Conda",
-                    "`echo \"$CONDA_DEFAULT_ENV\"`",
+                    "`$CONDA_DEFAULT_ENV` is set and value is not `base`",
                     "`conda base`",
                 ],
             ),
@@ -98,7 +99,7 @@ class InstallPythonReferenceTests(unittest.TestCase):
             ),
             (
                 PROJECT_ROOT / "evals" / "install-python-uv.md",
-                ["`uv python install 3.12`", "`uv python find 3.12`"],
+                ["`$UV_HOME`", "`uv python install 3.12`", "`uv python find 3.12`"],
             ),
             (
                 PROJECT_ROOT / "evals" / "install-python-macos.md",
@@ -120,7 +121,7 @@ class InstallPythonReferenceTests(unittest.TestCase):
             ),
             (
                 PROJECT_ROOT / "evals" / "avoid-conda-base.md",
-                ["`CONDA_DEFAULT_ENV=base`", "`conda base`", "repo-local `./venv`"],
+                ["`$CONDA_DEFAULT_ENV=base`", "`conda base`", "repo-local `./venv`"],
             ),
         ]
 

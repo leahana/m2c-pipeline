@@ -10,7 +10,7 @@
 
 ## 💡 它做什么
 
-`m2c_pipeline` 是一条单线流水线：自动读取 Markdown 文件 → 提取所有 Mermaid 代码块 → 用 Gemini 翻译成图片提示词 → 调用 Vertex AI 生成 PNG → 写入元数据存档。
+`m2c_pipeline` 是一条单线流水线：自动读取 Markdown 文件 → 提取所有 Mermaid 代码块 → 用 Gemini 翻译成图片提示词 → 调用 Vertex AI 生成图片 → 默认转存为 WebP 并保留排障材料。
 
 ```bash
 python -m m2c_pipeline path/to/input.md
@@ -26,7 +26,9 @@ python -m m2c_pipeline path/to/input.md
 - ⚡ **并发生成** — `ThreadPoolExecutor` 并发，`tqdm` 进度条实时反馈
 - 🔁 **自动重试** — `tenacity` 指数退避，Vertex 调用失败时 Translate 和 Paint 阶段都有保护
 - 🧪 **离线 dry-run** — `fallback + --dry-run` 可在无云凭据、无项目 ID 的环境里验证提词流程
-- 💾 **元数据内嵌** — PNG 文件内嵌 `mermaid_source` / `image_prompt` / `generated_at` 等字段
+- 💾 **默认 WebP 输出** — 面向 GitHub 存储更省体积；切回 PNG 时仍保留内嵌 metadata
+- 🧾 **Sidecar 调试材料** — WebP 会在同目录写 `*.metadata.json`，保留 Mermaid / prompt / 关键参数
+- 🗂️ **Run 级排障归档** — 每次运行都会在 `output_dir/_runs/<run_id>/` 落日志、配置快照和按 block 分组的诊断材料
 - 🛡️ **纯 Vertex AI** — 只走 ADC 认证，不依赖 Google AI Studio API key
 
 ---
@@ -107,8 +109,8 @@ cp .env.example .env
 |------|------|------|
 | 🔍 Extract | `extractor.py` | 正则提取 ```` ```mermaid ```` 块，返回 `MermaidBlock` |
 | 🌸 Translate | `translator.py` | Gemini 文本模型生成 `ImagePrompt`，失败时用本地 fallback |
-| 🖼️ Paint | `painter.py` | Gemini 图片模型生成 PNG 字节 |
-| 💾 Store | `storage.py` | 保存 PNG，写入元数据，失败时存 `*_FAILED.txt` |
+| 🖼️ Paint | `painter.py` | Gemini 图片模型生成原始图片字节 |
+| 💾 Store | `storage.py` | 默认保存 WebP，写入 sidecar / PNG metadata，并保留失败 prompt 与 block 级排障材料 |
 
 ---
 
@@ -125,7 +127,7 @@ m2c-pipeline/
 │   ├── extractor.py      # Mermaid 提取
 │   ├── translator.py     # Gemini 文本翻译
 │   ├── painter.py        # Gemini 图片生成
-│   ├── storage.py        # PNG 保存
+│   ├── storage.py        # WebP/PNG 保存与调试材料
 │   ├── version.py        # 版本号
 │   └── templates/        # 风格模板（当前：chiikawa）
 ├── tests/
@@ -266,6 +268,8 @@ gcloud auth application-default set-quota-project YOUR_PROJECT_ID
 | `--translation-mode` | 翻译模式 | `vertex` |
 | `--aspect-ratio` | 图片宽高比（`1:1`/`4:3`/`3:4`/`16:9`/`9:16` 等） | `1:1` |
 | `--output-dir` | 输出目录 | `./output` |
+| `--output-format` | 保存格式（`webp` / `png`） | `webp` |
+| `--webp-quality` | WebP 质量（`0-100`） | `85` |
 | `--max-workers` | 并发数 | `2` |
 | `--log-level` | 日志级别 | `INFO` |
 | `--version` | 打印版本号并退出 | — |
@@ -282,6 +286,8 @@ gcloud auth application-default set-quota-project YOUR_PROJECT_ID
 | `M2C_IMAGE_MODEL` | | `gemini-3.1-flash-image-preview` | 图片模型 |
 | `M2C_ASPECT_RATIO` | | `1:1` | 图片宽高比，支持 `1:1`/`4:3`/`3:4`/`16:9`/`9:16`/`2:3`/`3:2`/`4:5`/`5:4` |
 | `M2C_OUTPUT_DIR` | | `./output` | 输出目录 |
+| `M2C_OUTPUT_FORMAT` | | `webp` | 保存格式，`webp` 更省体积，`png` 保留内嵌 metadata |
+| `M2C_WEBP_QUALITY` | | `85` | WebP 保存质量，`0-100` |
 | `M2C_TEMPLATE` | | `chiikawa` | 风格模板 |
 | `M2C_TRANSLATION_MODE` | | `vertex` | 翻译模式，`fallback` 仅用于 `--dry-run` |
 | `M2C_MAX_WORKERS` | | `2` | 并发数 |
@@ -292,7 +298,39 @@ gcloud auth application-default set-quota-project YOUR_PROJECT_ID
 
 ## 📂 输出说明
 
-成功生成时，每个 Mermaid block 输出一个 PNG 🖼️，并内嵌以下元数据：
+运行后，`output_dir` 下会有两类产物：
+
+- 顶层默认保留最终 WebP，以及兼容旧流程的 `*_FAILED.txt`
+- `output_dir/_runs/<run_id>/` 保存本次 run 的完整日志和排障归档
+
+```text
+output/
+├── diagram_20260416_120000_00.webp
+├── diagram_20260416_120000_00.metadata.json
+├── diagram_20260416_120010_01_FAILED.txt
+└── _runs/
+    └── run_20260416T120000_123456Z/
+        ├── run.json
+        ├── input.md
+        ├── logs/
+        │   └── run.log
+        └── blocks/
+            ├── block_00_line_0005_flowchart/
+            │   ├── mermaid.mmd
+            │   ├── prompt.txt
+            │   ├── translation-request.txt
+            │   ├── translation-response.txt
+            │   ├── result.webp
+            │   ├── result.metadata.json
+            │   └── manifest.json
+            └── block_01_line_0012_graph/
+                ├── mermaid.mmd
+                ├── prompt.txt
+                ├── error.txt
+                └── manifest.json
+```
+
+默认 `webp` 模式下，会把这些排障字段写到同名 sidecar `*.metadata.json`：
 
 ```text
 mermaid_source   原始 Mermaid 代码
@@ -300,9 +338,29 @@ image_prompt     发送给图片模型的提示词
 generated_at     生成时间戳
 block_index      在文档中的位置
 diagram_type     图类型（graph / sequenceDiagram / ...）
+aspect_ratio     本次生成使用的宽高比
+image_model      图片模型
+source_image_format Vertex 返回的原始格式
 ```
 
-生成失败时，保存 `*_FAILED.txt` 📄，包含原始 Mermaid 和最终提示词，便于手工复查。
+如果使用 `--output-format png`，则继续把上述字段写进 PNG metadata text chunks，并且 `_runs/blocks/<block>/result.png` 也会跟随输出为 PNG。
+
+排障时优先看这些文件：
+
+- `run.json`：完整 CLI 入参、最终生效配置、输入文件路径、run 汇总、所有 block manifest 路径
+- `logs/run.log`：与控制台一致的完整日志落盘
+- `blocks/<block>/manifest.json`：输入文件、block 编号、line number、diagram type、translation mode、image model、重试次数、阶段耗时、输出大小/路径、失败原因
+- `blocks/<block>/mermaid.mmd` / `prompt.txt`：原始 Mermaid 和最终提示词
+- `blocks/<block>/translation-response.txt`：文本模型原始返回，便于排查 prompt 解析问题
+- `blocks/<block>/result.<ext>`：该 block 对应的最终图片副本（优先 hard link，失败时回退 copy）
+- `blocks/<block>/result.metadata.json`：WebP 输出时对应的 sidecar 调试材料副本
+- `blocks/<block>/error.txt`：异常堆栈；同时 manifest 里会记录兼容旧流程的 `legacy_failed_prompt_path`
+
+失败时定位建议：
+
+1. 先进入最新的 `output_dir/_runs/<run_id>/`
+2. 看 `run.json` 找到失败 block 的目录
+3. 进入对应 `blocks/<block>/`，优先看 `manifest.json`、`error.txt`、`prompt.txt`
 
 ### 🔧 常见问题排查
 
@@ -360,27 +418,9 @@ python tests/smoke_test.py --input tests/fixtures/test_input.md --with-image
 4. `release-please` 在 `main` 上自动创建 release PR
 5. merge release PR 后，自动创建 tag、GitHub Release、通用 zip/sha256 资产，并同步扁平化的 `skill` 分支
 
-### 本地预览打包
+### 本地预览安装
 
-如果只是想在本地安装测试 skill，并且希望每次测试都使用一个独立的 preview skill，可以直接生成一个带时间戳的本地预览包：
-
-```bash
-./venv/bin/python scripts/dev/package_preview.py --output-dir dist
-```
-
-这条命令会生成：
-
-- `dist/m2c-pipeline-preview-v<version>-<YYYYMMDD-HHMMSS>.zip`
-- `dist/m2c-pipeline-preview-v<version>-<YYYYMMDD-HHMMSS>.zip.sha256`
-
-同时把包内的 skill 标识也改成同一个 `m2c-pipeline-preview-v<version>-<YYYYMMDD-HHMMSS>`，这样同一版本重复打包时不会冲突，也便于你区分“这是哪个版本、哪一次打包”的本地测试 skill。
-
-这条本地 preview 打包链路和 CI / release 打包是分开的：
-
-- 本地测试预览包使用 `scripts/dev/package_preview.py`
-- CI / release 仍然使用稳定的 generic 打包路径，产物名保持 `m2c-pipeline-generic-v<version>.zip`
-
-如果本地装了很多旧的 preview skill，可以在测试结束后手动清理不再需要的时间戳版本。
+维护者本地自测时，可以使用 `./scripts/dev/preview_install.sh` 安装一个带时间戳的 preview skill；这条链路只服务开发验证，不作为普通用户的推荐入口。对外分发仍以 `skill` 分支和 release 产物为准。
 
 ### 约定
 

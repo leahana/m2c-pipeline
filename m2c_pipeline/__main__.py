@@ -13,9 +13,16 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from time import perf_counter
 
-from .config import VALID_ASPECT_RATIOS, VALID_TRANSLATION_MODES, VertexConfig
+from .config import (
+    VALID_ASPECT_RATIOS,
+    VALID_OUTPUT_FORMATS,
+    VALID_TRANSLATION_MODES,
+    VertexConfig,
+)
 from .pipeline import M2CPipeline
+from .run_artifacts import RunArtifacts
 from .version import __version__
 
 MINIMUM_PYTHON = (3, 11)
@@ -37,12 +44,21 @@ def _require_supported_python() -> None:
         )
 
 
-def _setup_logging(level: str) -> None:
+def _setup_logging(level: str, *, log_file: str | None = None) -> logging.Handler | None:
+    handlers: list[logging.Handler] = [logging.StreamHandler()]
+    file_handler: logging.Handler | None = None
+    if log_file:
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        handlers.append(file_handler)
+
     logging.basicConfig(
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%Y-%m-%dT%H:%M:%S",
         level=getattr(logging, level.upper(), logging.INFO),
+        handlers=handlers,
+        force=True,
     )
+    return file_handler
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -90,6 +106,22 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Directory to save generated images (default: ./output)",
     )
     parser.add_argument(
+        "--output-format",
+        default=None,
+        dest="output_format",
+        metavar="FMT",
+        choices=list(VALID_OUTPUT_FORMATS),
+        help="Saved image format (default: webp)",
+    )
+    parser.add_argument(
+        "--webp-quality",
+        default=None,
+        dest="webp_quality",
+        type=int,
+        metavar="N",
+        help="WebP quality for saved images, 0-100 (default: 85)",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Extract and translate only; skip image generation (free to run)",
@@ -113,6 +145,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    run_started = perf_counter()
     try:
         _require_supported_python()
     except RuntimeError as exc:
@@ -130,49 +163,99 @@ def main(argv: list[str] | None = None) -> int:
         aspect_ratio=args.aspect_ratio,
         translation_mode=args.translation_mode,
         output_dir=args.output_dir,
+        output_format=args.output_format,
+        webp_quality=args.webp_quality,
         max_workers=args.max_workers,
         log_level=args.log_level,
     )
 
-    _setup_logging(config.log_level)
-    logger = logging.getLogger("m2c_pipeline")
-
+    # Validate config before touching the filesystem so that dry-runs and
+    # config errors never require a writable output directory.
     try:
         config.validate(dry_run=args.dry_run)
     except ValueError as exc:
-        logger.error("Configuration error: %s", exc)
+        print(f"ERROR: Configuration error: {exc}", file=sys.stderr)
         return 1
 
-    logger.info(
-        "Config loaded (mode=%s, project=%s, template=%s, image_model=%s)",
-        config.translation_mode,
-        config.project_id or "n/a",
-        config.template_name,
-        config.image_model,
-    )
+    effective_argv = argv if argv is not None else sys.argv[1:]
+    try:
+        run_artifacts = RunArtifacts(
+            config,
+            argv=["python", "-m", "m2c_pipeline", *effective_argv],
+            input_path=args.input,
+            dry_run=args.dry_run,
+        )
+    except OSError as exc:
+        print(
+            f"ERROR: Cannot create run artifacts in '{config.output_dir}': {exc}",
+            file=sys.stderr,
+        )
+        return 1
+
+    file_handler = _setup_logging(config.log_level, log_file=str(run_artifacts.run_log_path))
+    logger = logging.getLogger("m2c_pipeline")
 
     try:
-        pipeline = M2CPipeline(config)
-        saved = pipeline.run(input_path=args.input, dry_run=args.dry_run)
-    except ImportError as exc:
-        logger.error("Dependency error: %s", exc)
-        return 1
-    except KeyError as exc:
-        logger.error("Template error: %s", exc)
-        return 1
-    except FileNotFoundError as exc:
-        logger.error("Input file error: %s", exc)
-        return 1
 
-    if saved:
-        print("\nGenerated images:")
-        for path in saved:
-            print(f"  {path}")
-    elif args.dry_run:
-        print("Dry run completed successfully.")
-    elif not args.dry_run:
-        print("No images were saved. Check logs for details.")
-    return 0
+        logger.info(
+            "Config loaded (mode=%s, project=%s, template=%s, image_model=%s)",
+            config.translation_mode,
+            config.project_id or "n/a",
+            config.template_name,
+            config.image_model,
+        )
+
+        try:
+            pipeline = M2CPipeline(config, run_artifacts=run_artifacts)
+            saved = pipeline.run(input_path=args.input, dry_run=args.dry_run)
+        except ImportError as exc:
+            logger.error("Dependency error: %s", exc)
+            run_artifacts.finalize(
+                status="failed",
+                total_duration_ms=int(round((perf_counter() - run_started) * 1000)),
+                saved_paths=[],
+                error=exc,
+            )
+            return 1
+        except KeyError as exc:
+            logger.error("Template error: %s", exc)
+            run_artifacts.finalize(
+                status="failed",
+                total_duration_ms=int(round((perf_counter() - run_started) * 1000)),
+                saved_paths=[],
+                error=exc,
+            )
+            return 1
+        except FileNotFoundError as exc:
+            logger.error("Input file error: %s", exc)
+            run_artifacts.finalize(
+                status="failed",
+                total_duration_ms=int(round((perf_counter() - run_started) * 1000)),
+                saved_paths=[],
+                error=exc,
+            )
+            return 1
+
+        run_artifacts.finalize(
+            status="completed",
+            total_duration_ms=int(round((perf_counter() - run_started) * 1000)),
+            saved_paths=saved,
+        )
+
+        if saved:
+            print("\nGenerated images:")
+            for path in saved:
+                print(f"  {path}")
+        elif args.dry_run:
+            print("Dry run completed successfully.")
+        elif not args.dry_run:
+            print("No images were saved. Check logs for details.")
+        return 0
+    finally:
+        if file_handler is not None:
+            root_logger = logging.getLogger()
+            root_logger.removeHandler(file_handler)
+            file_handler.close()
 
 
 if __name__ == "__main__":

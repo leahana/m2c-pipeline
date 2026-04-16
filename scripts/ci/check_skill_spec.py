@@ -155,14 +155,14 @@ def _validate_preflight_gate(text: str) -> None:
         if fragment not in text:
             raise ValueError(f"SKILL.md preflight gate is missing required phrase: {fragment!r}.")
 
-    venv_index = text.find("prefer a compatible `./venv/bin/python`")
-    system_index = text.find("look for a compatible system `python3` or `python`")
+    venv_index = text.find("Check `./venv/bin/python`")
+    passive_index = text.find("passive signals")
     install_index = text.find("references/install-python.md")
 
-    if min(venv_index, system_index, install_index) < 0:
-        raise ValueError("SKILL.md preflight gate must include venv/system/install decision points.")
-    if not venv_index < system_index < install_index:
-        raise ValueError("SKILL.md preflight gate order must be venv -> system python -> install reference.")
+    if min(venv_index, passive_index, install_index) < 0:
+        raise ValueError("SKILL.md preflight gate must include venv check, passive signals, and install reference decision points.")
+    if not venv_index < passive_index < install_index:
+        raise ValueError("SKILL.md preflight gate order must be venv check -> passive signals -> install reference.")
 
 
 def is_allowlisted(rel_path: str, allowlist: list[str]) -> bool:

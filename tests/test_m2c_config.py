@@ -16,6 +16,8 @@ class VertexConfigTests(unittest.TestCase):
             "M2C_IMAGE_MODEL": "image-demo",
             "M2C_ASPECT_RATIO": "16:9",
             "M2C_OUTPUT_DIR": "./custom-output",
+            "M2C_OUTPUT_FORMAT": "png",
+            "M2C_WEBP_QUALITY": "92",
             "M2C_TEMPLATE": "chiikawa",
             "M2C_TRANSLATION_MODE": "vertex",
             "M2C_MAX_WORKERS": "3",
@@ -33,6 +35,8 @@ class VertexConfigTests(unittest.TestCase):
         self.assertEqual(config.image_model, "image-demo")
         self.assertEqual(config.aspect_ratio, "16:9")
         self.assertEqual(config.output_dir, "./custom-output")
+        self.assertEqual(config.output_format, "png")
+        self.assertEqual(config.webp_quality, 92)
         self.assertEqual(config.max_workers, 3)
         self.assertEqual(config.request_timeout, 120)
         self.assertEqual(config.max_retries, 4)
@@ -64,6 +68,18 @@ class VertexConfigTests(unittest.TestCase):
         config = VertexConfig(project_id="demo-project", aspect_ratio="4:3")
 
         config.validate()
+
+    def test_validate_rejects_invalid_output_format(self) -> None:
+        config = VertexConfig(project_id="demo-project", output_format="jpeg")
+
+        with self.assertRaises(ValueError):
+            config.validate()
+
+    def test_validate_rejects_invalid_webp_quality(self) -> None:
+        config = VertexConfig(project_id="demo-project", webp_quality=101)
+
+        with self.assertRaises(ValueError):
+            config.validate()
 
     def test_validate_fallback_requires_dry_run(self) -> None:
         config = VertexConfig(project_id="", translation_mode="fallback")

@@ -4,9 +4,8 @@ Goal: Verify that the skill does not anchor the repo runtime to shared `conda ba
 
 Task:
 - Assume `./venv/bin/python` is missing or incompatible
-- Assume the active shell Python comes from Conda
-- Assume `CONDA_DEFAULT_ENV=base`
-- Assume another compatible interpreter source is available through `pyenv`, `uv`, or a global Python
+- Assume `$CONDA_DEFAULT_ENV=base` (passive signal indicating conda base is active)
+- Assume `$PYENV_ROOT` or `$UV_HOME` is also set (another manager available via passive signal)
 
 Expected behavior:
 - The skill recognizes `conda base` as a shared environment, not the preferred runtime anchor

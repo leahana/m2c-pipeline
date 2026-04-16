@@ -8,6 +8,7 @@ import logging
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from time import perf_counter
 
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
@@ -15,6 +16,7 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 from .config import VertexConfig
 from .extractor import MermaidBlock, MermaidExtractor
 from .painter import ImagePainter
+from .run_artifacts import RunArtifacts
 from .storage import ImageStorage
 from .templates import get_template
 from .translator import MermaidTranslator
@@ -23,9 +25,15 @@ from .translator import MermaidTranslator
 class M2CPipeline:
     """Orchestrate the full Mermaid-to-Chiikawa pipeline."""
 
-    def __init__(self, config: VertexConfig) -> None:
+    def __init__(
+        self,
+        config: VertexConfig,
+        *,
+        run_artifacts: RunArtifacts | None = None,
+    ) -> None:
         self._config = config
         self._logger = logging.getLogger(self.__class__.__name__)
+        self._run_artifacts = run_artifacts
 
         self._template = get_template(config.template_name)
         self._extractor = MermaidExtractor()
@@ -67,9 +75,19 @@ class M2CPipeline:
             self._config.translation_mode,
             self._config.max_workers,
         )
+        if self._run_artifacts is not None:
+            self._run_artifacts.capture_input_snapshot(input_path)
+            self._logger.info("Run artifacts: %s", self._run_artifacts.root_dir)
 
         # Step 1: Extract (always serial, instant)
+        extract_started = perf_counter()
         blocks = self._extractor.extract(input_path)
+        extract_finished = perf_counter()
+        if self._run_artifacts is not None:
+            self._run_artifacts.record_extract(
+                block_count=len(blocks),
+                duration_ms=int(round((extract_finished - extract_started) * 1000)),
+            )
         if not blocks:
             self._logger.warning("No mermaid blocks found in %s", input_path)
             return []
@@ -93,32 +111,120 @@ class M2CPipeline:
         def process_block(block: MermaidBlock) -> Path | None:
             """Translate → Paint → Store one block under semaphore guard."""
             with semaphore:
-                # Step 2: Translate
-                image_prompt = translator.translate(block)
+                block_started = perf_counter()
+                block_artifacts = (
+                    self._run_artifacts.start_block(block)
+                    if self._run_artifacts is not None
+                    else None
+                )
 
-                if dry_run:
-                    self._logger.info(
-                        "[DRY-RUN] Block %d prompt (aspect_ratio=%s):\n%s",
-                        block.index,
-                        image_prompt.aspect_ratio,
-                        image_prompt.prompt_text,
-                    )
-                    return None
-
-                # Step 3: Paint
                 try:
-                    image_bytes = painter.paint(image_prompt)
+                    translate_started = perf_counter()
+                    image_prompt = translator.translate(block)
+                    translate_finished = perf_counter()
+                    if block_artifacts is not None:
+                        block_artifacts.record_translation(
+                            image_prompt,
+                            duration_ms=int(
+                                round((translate_finished - translate_started) * 1000)
+                            ),
+                        )
+
+                    if dry_run:
+                        self._logger.info(
+                            "[DRY-RUN] Block %d prompt (aspect_ratio=%s):\n%s",
+                            block.index,
+                            image_prompt.aspect_ratio,
+                            image_prompt.prompt_text,
+                        )
+                        if block_artifacts is not None:
+                            block_artifacts.record_dry_run()
+                            block_artifacts.finalize(
+                                status="dry_run",
+                                total_duration_ms=int(
+                                    round((perf_counter() - block_started) * 1000)
+                                ),
+                            )
+                        return None
+
+                    paint_started = perf_counter()
+                    try:
+                        image_bytes = painter.paint(image_prompt)
+                        paint_diagnostics = painter.consume_last_result()
+                    except ImportError:
+                        raise
+                    except Exception as exc:
+                        paint_diagnostics = painter.consume_last_result()
+                        self._logger.error(
+                            "Image generation failed for block %d: %s", block.index, exc
+                        )
+                        failed_prompt_path = storage.save_failed_prompt(
+                            block,
+                            image_prompt.prompt_text,
+                        )
+                        if block_artifacts is not None:
+                            block_artifacts.record_paint_failure(
+                                exc=exc,
+                                duration_ms=int(
+                                    round((perf_counter() - paint_started) * 1000)
+                                ),
+                                diagnostics=paint_diagnostics,
+                                failed_prompt_path=failed_prompt_path,
+                            )
+                            block_artifacts.finalize(
+                                status="failed",
+                                total_duration_ms=int(
+                                    round((perf_counter() - block_started) * 1000)
+                                ),
+                            )
+                        return None
+
+                    if block_artifacts is not None:
+                        block_artifacts.record_paint_success(
+                            duration_ms=int(
+                                round((perf_counter() - paint_started) * 1000)
+                            ),
+                            image_byte_count=len(image_bytes),
+                            diagnostics=paint_diagnostics,
+                        )
+
+                    store_started = perf_counter()
+                    path = storage.save(
+                        image_bytes,
+                        block,
+                        image_prompt.prompt_text,
+                        aspect_ratio=image_prompt.aspect_ratio,
+                    )
+                    if block_artifacts is not None:
+                        block_artifacts.record_storage(
+                            primary_path=path,
+                            duration_ms=int(
+                                round((perf_counter() - store_started) * 1000)
+                            ),
+                        )
+                        block_artifacts.finalize(
+                            status="succeeded",
+                            total_duration_ms=int(
+                                round((perf_counter() - block_started) * 1000)
+                            ),
+                        )
+                    return path
                 except ImportError:
                     raise
                 except Exception as exc:
-                    self._logger.error(
-                        "Image generation failed for block %d: %s", block.index, exc
-                    )
-                    storage.save_failed_prompt(block, image_prompt.prompt_text)
+                    self._logger.error("Block %d unhandled error: %s", block.index, exc)
+                    if block_artifacts is not None:
+                        block_artifacts.record_unhandled_failure(
+                            stage="pipeline",
+                            exc=exc,
+                        )
+                        block_artifacts.finalize(
+                            status="failed",
+                            total_duration_ms=int(
+                                round((perf_counter() - block_started) * 1000)
+                            ),
+                        )
                     return None
-
-                # Step 4: Store
-                return storage.save(image_bytes, block, image_prompt.prompt_text)
 
         # Step 2-4: Process blocks concurrently with tqdm progress bar
         bar_fmt = "{l_bar}{bar}| {n_fmt}/{total_fmt} blocks [{elapsed}<{remaining}]"
@@ -141,13 +247,6 @@ class M2CPipeline:
                             path = future.result()
                         except ImportError:
                             raise
-                        except Exception as exc:
-                            self._logger.error(
-                                "Block %d unhandled error: %s", block.index, exc
-                            )
-                            pbar.set_postfix_str(f"#{block.index} ✗ error")
-                            pbar.update(1)
-                            continue
 
                         if path:
                             with lock:

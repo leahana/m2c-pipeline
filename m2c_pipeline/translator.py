@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 from dataclasses import dataclass
 
 from tenacity import (
@@ -93,6 +94,36 @@ def _before_sleep_quota(retry_state) -> None:
         )
 
 
+def _serialize_retry_event(retry_state) -> dict[str, object]:
+    exc = retry_state.outcome.exception()
+    sleep_secs = getattr(retry_state.next_action, "sleep", 0)
+    status_code = getattr(exc, "status_code", None) or (exc.args[0] if exc and exc.args else None)
+
+    quota_type = None
+    raw_message = str(exc) if exc is not None else ""
+    if exc is not None and str(status_code) == "429":
+        quota_type, raw_message = _classify_quota_error(exc)
+
+    return {
+        "attempt": retry_state.attempt_number,
+        "sleep_seconds": round(float(sleep_secs), 3),
+        "status_code": str(status_code) if status_code is not None else None,
+        "error_type": type(exc).__name__ if exc is not None else None,
+        "error_message": raw_message,
+        "quota_type": quota_type,
+    }
+
+
+def _before_sleep_with_diagnostics(retry_state) -> None:
+    _before_sleep_quota(retry_state)
+    if not retry_state.args:
+        return
+
+    recorder = getattr(retry_state.args[0], "_record_retry_event", None)
+    if callable(recorder):
+        recorder(_serialize_retry_event(retry_state))
+
+
 @dataclass
 class ImagePrompt:
     """A translated prompt ready for the painter."""
@@ -100,6 +131,12 @@ class ImagePrompt:
     prompt_text: str
     aspect_ratio: str
     source_block: MermaidBlock
+    model_response_text: str | None = None
+    translation_request_text: str | None = None
+    translation_backend: str = "fallback"
+    translation_used_fallback: bool = False
+    translation_fallback_reason: str | None = None
+    translation_retry_events: tuple[dict[str, object], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -123,6 +160,7 @@ class MermaidTranslator:
         self._config = config
         self._template = template
         self._client = None
+        self._retry_context = threading.local()
 
     def _init_client(self):
         """Initialize google-genai client with Vertex AI backend."""
@@ -151,6 +189,9 @@ class MermaidTranslator:
         block: MermaidBlock,
         *,
         aspect_ratio: str | None = None,
+        translation_request_text: str | None = None,
+        fallback_reason: str | None = None,
+        retry_events: list[dict[str, object]] | None = None,
     ) -> ImagePrompt:
         ratio = aspect_ratio or self._config.aspect_ratio
         fallback = self._template.build_prompt(
@@ -162,7 +203,26 @@ class MermaidTranslator:
             prompt_text=fallback,
             aspect_ratio=ratio,
             source_block=block,
+            model_response_text=None,
+            translation_request_text=translation_request_text,
+            translation_backend="fallback",
+            translation_used_fallback=True,
+            translation_fallback_reason=fallback_reason,
+            translation_retry_events=tuple(retry_events or ()),
         )
+
+    def _begin_retry_capture(self) -> None:
+        self._retry_context.events = []
+
+    def _record_retry_event(self, event: dict[str, object]) -> None:
+        events = getattr(self._retry_context, "events", None)
+        if events is not None:
+            events.append(event)
+
+    def _consume_retry_events(self) -> list[dict[str, object]]:
+        events = list(getattr(self._retry_context, "events", []))
+        self._retry_context.events = []
+        return events
 
     def translate(self, block: MermaidBlock) -> ImagePrompt:
         """Translate one MermaidBlock into an ImagePrompt.
@@ -177,7 +237,10 @@ class MermaidTranslator:
                 block.diagram_type,
                 block.line_number,
             )
-            return self._build_fallback_prompt(block)
+            return self._build_fallback_prompt(
+                block,
+                fallback_reason="translation_mode=fallback",
+            )
 
         logger.info(
             "Translating block %d (type=%s, line=%d)",
@@ -186,21 +249,35 @@ class MermaidTranslator:
             block.line_number,
         )
         user_message = self._build_user_message(block)
+        self._begin_retry_capture()
 
         try:
             response_text = self._call_gemini(user_message)
+            retry_events = self._consume_retry_events()
         except ImportError:
+            self._consume_retry_events()
             raise
         except Exception as exc:
+            retry_events = self._consume_retry_events()
             logger.warning(
                 "Gemini call failed for block %d after retries: %s. "
                 "Using fallback prompt.",
                 block.index,
                 exc,
             )
-            return self._build_fallback_prompt(block)
+            return self._build_fallback_prompt(
+                block,
+                translation_request_text=user_message,
+                fallback_reason=str(exc),
+                retry_events=retry_events,
+            )
 
-        return self._parse_response(response_text, block)
+        return self._parse_response(
+            response_text,
+            block,
+            translation_request_text=user_message,
+            retry_events=retry_events,
+        )
 
     def _extract_nodes(self, mermaid_source: str) -> tuple[dict[str, str], set[str]]:
         """Return labeled node ids in first-seen order plus diamond node ids."""
@@ -492,7 +569,7 @@ class MermaidTranslator:
         retry=retry_if_exception(lambda exc: not isinstance(exc, ImportError)),
         stop=stop_after_attempt(5),
         wait=wait_exponential(multiplier=1, min=2, max=60),
-        before_sleep=_before_sleep_quota,
+        before_sleep=_before_sleep_with_diagnostics,
         reraise=True,
     )
     def _call_gemini(self, user_message: str) -> str:
@@ -508,12 +585,21 @@ class MermaidTranslator:
         )
         return response.text
 
-    def _parse_response(self, response_text: str, block: MermaidBlock) -> ImagePrompt:
+    def _parse_response(
+        self,
+        response_text: str,
+        block: MermaidBlock,
+        *,
+        translation_request_text: str,
+        retry_events: list[dict[str, object]],
+    ) -> ImagePrompt:
         """Parse Gemini response; extract aspect ratio and prompt body."""
         lines = response_text.strip().splitlines()
 
         aspect_ratio = self._config.aspect_ratio
         prompt_start = 0
+        used_fallback = False
+        fallback_reason = None
 
         for i, line in enumerate(lines):
             stripped = line.strip()
@@ -541,10 +627,21 @@ class MermaidTranslator:
             prompt_text = self._build_fallback_prompt(
                 block,
                 aspect_ratio=aspect_ratio,
+                translation_request_text=translation_request_text,
+                fallback_reason="Gemini returned empty prompt",
+                retry_events=retry_events,
             ).prompt_text
+            used_fallback = True
+            fallback_reason = "Gemini returned empty prompt"
 
         return ImagePrompt(
             prompt_text=prompt_text,
             aspect_ratio=aspect_ratio,
             source_block=block,
+            model_response_text=response_text,
+            translation_request_text=translation_request_text,
+            translation_backend="vertex",
+            translation_used_fallback=used_fallback,
+            translation_fallback_reason=fallback_reason,
+            translation_retry_events=tuple(retry_events),
         )

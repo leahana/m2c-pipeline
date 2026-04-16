@@ -97,12 +97,12 @@ If neither condition is true, pause and clarify the auth path first.
 
 ## Quick Verification Checklist
 
-Before the live run:
+Before the live run, check only what is accessible within the repo root (no external scanning needed):
 
-- Confirm `.env` exists
-- Confirm `M2C_PROJECT_ID` is set to a real project ID
-- Confirm `GOOGLE_APPLICATION_CREDENTIALS` is set, or the user explicitly chose system ADC
-- If `GOOGLE_APPLICATION_CREDENTIALS` is set, confirm the file exists and is readable
+- Confirm `.env` exists in the repo root
+- Confirm `M2C_PROJECT_ID` is set in `.env` to a real project ID
+- Confirm `GOOGLE_APPLICATION_CREDENTIALS` is set in `.env`, OR the user explicitly chose system ADC and authorized a gcloud scan that confirmed login is complete
+- If `GOOGLE_APPLICATION_CREDENTIALS` is set, the path was provided by the user or discovered with explicit user consent — do not proactively check whether the file exists unless the user has authorized credential file scanning
 - Confirm the input Markdown contains at least one fenced `mermaid` block
 
 ## Troubleshooting Order
