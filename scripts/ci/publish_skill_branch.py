@@ -20,6 +20,8 @@ from scripts.ci.package_generic import (
     published_skill_paths,
 )
 
+SKILL_BRANCH_ROOT_DIR = "m2c-pipeline"
+
 
 class PublishError(RuntimeError):
     """Raised when skill branch publishing fails."""
@@ -60,10 +62,17 @@ def stage_skill_tree(
     source_files: list[Path],
     stage_dir: Path,
 ) -> Path:
+    if stage_dir.exists():
+        if any(stage_dir.iterdir()):
+            raise PublishError(f"Stage directory must be empty: {stage_dir}")
+    else:
+        stage_dir.mkdir(parents=True, exist_ok=True)
+
+    skill_root = stage_dir / SKILL_BRANCH_ROOT_DIR
     try:
-        skill_root, _ = build_published_skill_tree(
+        build_published_skill_tree(
             repo_root=repo_root,
-            stage_dir=stage_dir,
+            stage_dir=skill_root,
             source_files=source_files,
         )
     except PackagingError as exc:
@@ -108,15 +117,17 @@ def publish(
 ) -> None:
     resolved_version = version or load_version()
     source_files = collect_skill_files(repo_root)
-    rel_paths = published_skill_paths(source_files, repo_root)
+    rel_paths = [
+        f"{SKILL_BRANCH_ROOT_DIR}/{path}" for path in published_skill_paths(source_files, repo_root)
+    ]
 
     print(f"Skill branch content for v{resolved_version} ({len(rel_paths)} files):")
     for p in rel_paths:
         print(f"  {p}")
 
     if stage_dir is not None:
-        stage_skill_tree(repo_root, source_files, stage_dir)
-        print(f"Staged skill tree at: {stage_dir}")
+        skill_root = stage_skill_tree(repo_root, source_files, stage_dir)
+        print(f"Staged skill tree at: {skill_root}")
         return
 
     if dry_run:
