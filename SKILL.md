@@ -43,7 +43,7 @@ Based on the passive signals, present one of the following tailored prompts. Alw
 - **Signal: `$UV_HOME` is set** — "You appear to have uv installed. Recommended: use uv to provide Python (I'll need to run `uv python find 3.12` — this only queries uv-managed versions). Or: provide a Python path directly."
 - **Signal: `$CONDA_DEFAULT_ENV` is set (not `base`)** — "You appear to be in conda environment `$CONDA_DEFAULT_ENV`. Recommended: use it as the bootstrap source — the venv will be created inside the skill's own directory (`./venv`), not inside conda. Or: provide a Python path directly."
 - **Signal: `$VIRTUAL_ENV` is set** — "You have an active virtualenv at `$VIRTUAL_ENV`. Recommended: use it as the bootstrap source to create `./venv`. Or: provide a Python path directly."
-- **Signal: none of the above** — "I need Python 3.11+ to set up the project virtualenv, but I don't see a Python environment manager configured in your shell. Recommended: install uv (no admin rights needed, fast, modern). Or: tell me the path to a Python 3.11+ interpreter you already have."
+- **Signal: none of the above** — "I need Python 3.11+ to set up the project virtualenv, but I don't see a Python environment manager configured in your shell. Recommended: install uv (no admin rights needed, fast, modern). Or: tell me the path to a Python 3.11+ interpreter you already have. Or: if you use pyenv, conda, or Homebrew, I can help check after you authorize a scan."
 
 **Step 4 — Active scan or direct path (only after user responds)**
 
@@ -136,6 +136,10 @@ If neither is true, pause and guide the user via [references/vertex-auth.md](ref
 - [evals/paint-failure-recovery.md](evals/paint-failure-recovery.md) — verify `*_FAILED.txt` handling when image generation fails.
 - [evals/user-provided-input.md](evals/user-provided-input.md) — verify the agent correctly handles a user-provided Markdown file.
 - [evals/reuse-existing-venv.md](evals/reuse-existing-venv.md) — verify the agent reuses a healthy venv without recreating it, while still running repo-local bootstrap.
+- [evals/consent-scan-python.md](evals/consent-scan-python.md) — verify authorized Python scans report findings and wait for confirmation before bootstrap.
+- [evals/env-signal-pyenv.md](evals/env-signal-pyenv.md), [evals/env-signal-uv.md](evals/env-signal-uv.md), [evals/env-signal-conda.md](evals/env-signal-conda.md), [evals/env-signal-none.md](evals/env-signal-none.md) — verify passive-signal-driven prompt selection and no-signal fallback behavior.
+- [evals/user-provides-python-path.md](evals/user-provides-python-path.md) — verify a user-provided interpreter path is preferred over auto-discovery.
+- [evals/user-provides-credentials.md](evals/user-provides-credentials.md) — verify user-provided Vertex credentials are written to `.env` without `gcloud` scanning.
 - [evals/install-python-pyenv.md](evals/install-python-pyenv.md) — verify the agent prefers `pyenv` when it is already available but lacks a compatible version.
 - [evals/install-python-uv.md](evals/install-python-uv.md) — verify the agent can use `uv` as a no-admin Python installation path before falling back to OS package managers.
 - [evals/avoid-conda-base.md](evals/avoid-conda-base.md) — verify the agent does not anchor the repo runtime to shared `conda base`.
