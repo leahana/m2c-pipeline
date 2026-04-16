@@ -61,6 +61,9 @@ class ImageStorage:
             if self._output_format == "webp":
                 # Sidecar JSON is the only metadata carrier for WebP — treat
                 # a write failure as a storage error so callers surface it.
+                # Remove partial outputs so callers never see a "successful"
+                # image without the required metadata sidecar.
+                self._cleanup_incomplete_output(output_path)
                 raise
             logger.warning(
                 "Failed to write debug metadata for %s: %s. "
@@ -149,6 +152,18 @@ class ImageStorage:
             return
         debug_metadata["output_image_bytes"] = image_path.stat().st_size
         self._write_sidecar_metadata(image_path, debug_metadata)
+
+    @staticmethod
+    def _cleanup_incomplete_output(image_path: Path) -> None:
+        for path in (image_path, image_path.with_suffix(".metadata.json")):
+            try:
+                path.unlink(missing_ok=True)
+            except OSError as exc:
+                logger.warning(
+                    "Failed to remove incomplete output %s after metadata write error: %s",
+                    path,
+                    exc,
+                )
 
     @staticmethod
     def _normalize_image_mode(image):

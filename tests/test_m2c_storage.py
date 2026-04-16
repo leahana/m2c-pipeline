@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
 
 from PIL import Image
 
@@ -89,6 +90,36 @@ class ImageStorageTests(unittest.TestCase):
                 self.assertEqual(image.info["aspect_ratio"], "4:3")
                 self.assertEqual(image.info["source_image_format"], "jpeg")
                 self.assertIn("generated_at", image.info)
+
+    def test_save_webp_cleans_up_partial_outputs_when_sidecar_write_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config = VertexConfig(project_id="demo-project", output_dir=tmpdir)
+            storage = ImageStorage(config)
+            block = MermaidBlock(
+                index=2,
+                source="graph TD\nA --> B",
+                diagram_type="graph",
+                line_number=8,
+            )
+
+            def fail_after_partial_sidecar(image_path: Path, debug_metadata: dict[str, object]) -> None:
+                image_path.with_suffix(".metadata.json").write_text("{\n", encoding="utf-8")
+                raise OSError("disk full")
+
+            with patch.object(
+                ImageStorage,
+                "_write_sidecar_metadata",
+                side_effect=fail_after_partial_sidecar,
+            ):
+                with self.assertRaises(OSError):
+                    storage.save(
+                        build_image_bytes("PNG"),
+                        block,
+                        "demo prompt",
+                        aspect_ratio="1:1",
+                    )
+
+            self.assertEqual(list(Path(tmpdir).iterdir()), [])
 
     def test_save_failed_prompt_writes_debug_text_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
