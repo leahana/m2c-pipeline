@@ -45,7 +45,7 @@ git switch skill
 
 ## 快速开始
 
-无论你当前目录来自源码仓库、Release 解压目录，还是直接 checkout 的 `skill` 分支，都可以在根目录执行同一套命令；已有 `./venv` 时可以直接复用。
+无论你当前目录来自源码仓库、Release 解压目录，还是直接 checkout 的 `skill` 分支，都可以在根目录执行同一套命令；skill 根目录本身就是工作目录，`./venv`、`./output`、`./.env` 都相对这里解析。
 
 ```bash
 # 1. 在当前根目录准备环境
@@ -68,11 +68,10 @@ cp .env.example .env
 
 这个 skill 最终一律运行在 repo-local `./venv` 上；外部 Python 只负责给 `./scripts/bootstrap_env.sh` 提供一个可用的启动解释器。
 
-- `pyenv`：优先复用，适合作为用户态、干净的 bootstrap 来源。
-- `uv`：可以提供 Python 或临时 `.venv`，但本项目不切到 `uv run`；仍然会回到 repo-local `./venv`。
-- Conda：命名环境可以临时借来 bootstrap；不建议把本项目绑定到共享 `conda base`。
-- Homebrew / Python.org / 系统 Python：只要版本兼容，也可以作为 bootstrap 来源。
-- 完全没有兼容 Python 时：优先看是否已有 `pyenv` 或 `uv`，再退到 Homebrew / `apt` / `winget` 这类平台安装路径。
+- 优先复用当前根目录下已经存在且健康的 `./venv/bin/python`。
+- 如果本地 `./venv` 不可用，再选择一个 Python 3.11+ 作为 bootstrap 来源，优先级是用户直接提供的解释器路径、`pyenv`、`uv`、命名 Conda 环境，最后才是系统 Python。
+- 不把运行时绑定到 `conda base`、`uv run` 或其他共享环境；所有正式命令最终都回到 repo-local `./venv`。
+- 任何外部环境探测或 `gcloud` 检查，都应在用户明确授权后再执行。
 
 ## 使用自己的文件
 
@@ -82,11 +81,14 @@ cp .env.example .env
 # 先用离线模式确认提示词生成正常
 ./venv/bin/python -m m2c_pipeline path/to/your-file.md --dry-run --translation-mode fallback
 
-# 确认无误后，正式生成图片
+# 确认无误后，正式生成图片（默认输出 WebP）
 ./venv/bin/python -m m2c_pipeline path/to/your-file.md --translation-mode vertex --output-dir ./output
+
+# 如需兼容旧 PNG 流程
+./venv/bin/python -m m2c_pipeline path/to/your-file.md --translation-mode vertex --output-dir ./output --output-format png
 ```
 
-文件中有多个 mermaid 块时，pipeline 会并发处理，每个块生成一张独立的 PNG。
+文件中有多个 mermaid 块时，pipeline 会并发处理，每个块生成一张独立的图片。
 
 ## 输出示例
 
@@ -106,11 +108,19 @@ Extracting mermaid blocks from your-file.md ...
 Found 2 mermaid block(s).
 Translating and painting blocks ...  2/2
 Generated images:
-  ./output/diagram_20260406_120000_00.png
-  ./output/diagram_20260406_120001_01.png
+  ./output/diagram_20260416_120000_00.webp
+  ./output/diagram_20260416_120001_01.webp
 ```
 
-生成的 PNG 文件内嵌有元数据（原始 Mermaid 代码、最终提示词、生成时间、块索引、图表类型）。
+默认会生成 WebP 文件，并在同目录写出同名 `*.metadata.json` sidecar，记录 Mermaid、最终 prompt、模板、时间戳和关键参数。
+
+如果你改用 `--output-format png`，则 metadata 会直接内嵌进 PNG，不再写 sidecar。
+
+每次正式运行还会在输出目录下保留 `runs/<timestamp>/` 形式的排障材料，包括：
+
+- `run.json`：本次运行的 CLI 入参、最终配置和 block manifest
+- `logs/run.log`：完整日志落盘
+- `blocks/<block>/`：按 block 保存的翻译、生成、存储诊断信息
 
 如果某个块生成失败，会在输出目录写入 `diagram_YYYYMMDD_HHMMSS_NN_FAILED.txt` 作为恢复参考。
 
@@ -122,6 +132,8 @@ Generated images:
 | `--translation-mode` | `vertex`（云端）或 `fallback`（离线）| `vertex` |
 | `--aspect-ratio` | 图片宽高比 | `1:1` |
 | `--output-dir` | 输出目录 | `./output` |
+| `--output-format` | 保存格式（`webp` / `png`） | `webp` |
+| `--webp-quality` | WebP 质量（`0-100`） | `85` |
 | `--dry-run` | 跳过图片生成 | 关 |
 | `--max-workers` | 并发数 | `2` |
 | `--log-level` | 日志级别（`DEBUG`/`INFO`/`WARNING`/`ERROR`）| `INFO` |
@@ -132,9 +144,15 @@ Generated images:
 | 变量 | 必填 | 说明 |
 |------|------|------|
 | `M2C_PROJECT_ID` | 是 | GCP project ID |
-| `GOOGLE_APPLICATION_CREDENTIALS` | 否 | ADC JSON 路径；未设置时回退到系统 ADC |
+| `GOOGLE_APPLICATION_CREDENTIALS` | 否 | ADC JSON 路径；未设置时可回退到系统 ADC |
 
-> 本 skill 只走 Vertex AI API，不支持 Google AI Studio 或 API key。
+> 本 skill 只走 Vertex AI API，不支持 Google AI Studio、`GOOGLE_API_KEY`、`GEMINI_API_KEY` 或 `api_key=` 方式。
+
+推荐把 `M2C_PROJECT_ID` 和 `GOOGLE_APPLICATION_CREDENTIALS` 都写进 `.env`。如果暂时不写凭据路径，也可以先完成 `gcloud auth application-default login`，再回退到系统 ADC。
+
+## 维护者预览
+
+仓库里提供了 `./scripts/dev/preview_install.sh` 供维护者本地安装带时间戳的 preview skill 做自测；普通用户仍应优先使用 `skill` 分支或 release 压缩包。
 
 ## License
 
