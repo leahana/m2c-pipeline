@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.7.0](https://github.com/leahana/m2c-pipeline/compare/v0.6.2...v0.7.0) (2026-04-16)
+
+
+### Features
+
+* merge dev into main for webp output, run artifacts, and skill workflow updates ([12fbcd9](https://github.com/leahana/m2c-pipeline/commit/12fbcd964649b11213ad17ffbc3767c72de0f44b))
+* Run 级排障归档 — 日志落盘与 block 级诊断材料 ([ffa27d6](https://github.com/leahana/m2c-pipeline/commit/ffa27d69df3ebb844d5dea870570d82d7ad785db))
+* Vertex 原生输出能力 + WebP 默认输出方案 ([861a043](https://github.com/leahana/m2c-pipeline/commit/861a04354f757722791d9d5dfc1a1da5c1c61d7c))
+
+
+### Bug Fixes
+
+* clean up orphaned webp outputs on sidecar failure ([f2d79e7](https://github.com/leahana/m2c-pipeline/commit/f2d79e70b180e125fac0e298edcab7e4a731f7eb))
+
+
+### Documentation
+
+* 同步 2026-04-16 的 skill 分支文档 ([8018ecd](https://github.com/leahana/m2c-pipeline/commit/8018ecdb248849bebdda69a0844099383921086a))
+
 ## [0.6.2](https://github.com/leahana/m2c-pipeline/compare/v0.6.1...v0.6.2) (2026-04-09)
 
 
