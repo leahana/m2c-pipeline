@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.7.1](https://github.com/leahana/m2c-pipeline/compare/v0.7.0...v0.7.1) (2026-04-17)
+
+
+### Bug Fixes
+
+* update skill branch clone instructions and contract doc for m2c-pipeline subdir layout ([2685846](https://github.com/leahana/m2c-pipeline/commit/26858466989c9165bdc664e5a1eec0fb2e16fb3e))
+* update skill branch clone instructions and contract doc for m2c-pipeline subdir layout ([605259f](https://github.com/leahana/m2c-pipeline/commit/605259f87e611bb73d76eb2cefed253303956d95))
+
 ## [0.7.0](https://github.com/leahana/m2c-pipeline/compare/v0.6.2...v0.7.0) (2026-04-16)
 
 
