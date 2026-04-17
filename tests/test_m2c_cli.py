@@ -89,6 +89,7 @@ class CliTests(unittest.TestCase):
                     self.assertEqual(manifest["summary"]["dry_run_count"], 2)
                     self.assertEqual(manifest["config"]["output_format"], "webp")
                     self.assertEqual(manifest["config"]["webp_quality"], 85)
+                    self.assertEqual(manifest["config"]["translation_seed"], 7)
 
     def test_output_flags_override_config_in_run_manifest(self) -> None:
         stdout = io.StringIO()
@@ -108,6 +109,12 @@ class CliTests(unittest.TestCase):
                                 tmpdir,
                                 "--output-format",
                                 "png",
+                                "--translation-seed",
+                                "random",
+                                "--translation-temperature",
+                                "0.15",
+                                "--translation-top-p",
+                                "0.25",
                                 "--webp-quality",
                                 "91",
                             ]
@@ -118,3 +125,6 @@ class CliTests(unittest.TestCase):
                     manifest = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
                     self.assertEqual(manifest["config"]["output_format"], "png")
                     self.assertEqual(manifest["config"]["webp_quality"], 91)
+                    self.assertIsNone(manifest["config"]["translation_seed"])
+                    self.assertEqual(manifest["config"]["translation_temperature"], 0.15)
+                    self.assertEqual(manifest["config"]["translation_top_p"], 0.25)

@@ -25,6 +25,20 @@ VALID_TRANSLATION_MODES = ("vertex", "fallback")
 VALID_OUTPUT_FORMATS = ("png", "webp")
 
 
+def _parse_optional_int(raw_value: str | None, *, default: int | None = None) -> int | None:
+    """Parse optional integer values from env/CLI style strings.
+
+    Empty strings and marker values such as "none" / "random" disable the seed.
+    """
+    if raw_value is None:
+        return default
+
+    normalized = raw_value.strip().lower()
+    if not normalized or normalized in {"none", "off", "random", "unset"}:
+        return None
+    return int(raw_value)
+
+
 def _parse_dotenv_line(line: str) -> Optional[Tuple[str, str]]:
     """Parse a minimal .env line.
 
@@ -109,6 +123,9 @@ class VertexConfig:
     output_format: str = "webp"
     webp_quality: int = 85
     template_name: str = "chiikawa"
+    translation_temperature: float = 0.1
+    translation_top_p: float = 0.2
+    translation_seed: int | None = 7
 
     # === Concurrency ===
     # max_workers=2 is conservative: image gen takes 45-200s and is quota-sensitive
@@ -139,6 +156,14 @@ class VertexConfig:
             output_format=os.environ.get("M2C_OUTPUT_FORMAT", "webp"),
             webp_quality=int(os.environ.get("M2C_WEBP_QUALITY", "85")),
             template_name=os.environ.get("M2C_TEMPLATE", "chiikawa"),
+            translation_temperature=float(
+                os.environ.get("M2C_TRANSLATION_TEMPERATURE", "0.1")
+            ),
+            translation_top_p=float(os.environ.get("M2C_TRANSLATION_TOP_P", "0.2")),
+            translation_seed=_parse_optional_int(
+                os.environ.get("M2C_TRANSLATION_SEED"),
+                default=7,
+            ),
             max_workers=int(os.environ.get("M2C_MAX_WORKERS", "2")),
             request_timeout=int(os.environ.get("M2C_REQUEST_TIMEOUT", "600")),
             max_retries=int(os.environ.get("M2C_MAX_RETRIES", "5")),
@@ -178,6 +203,16 @@ class VertexConfig:
             raise ValueError(
                 f"Invalid webp_quality '{self.webp_quality}'. "
                 "Must be between 0 and 100."
+            )
+        if not 0.0 <= self.translation_temperature <= 2.0:
+            raise ValueError(
+                f"Invalid translation_temperature '{self.translation_temperature}'. "
+                "Must be between 0.0 and 2.0."
+            )
+        if not 0.0 <= self.translation_top_p <= 1.0:
+            raise ValueError(
+                f"Invalid translation_top_p '{self.translation_top_p}'. "
+                "Must be between 0.0 and 1.0."
             )
         if self.translation_mode == "fallback":
             if not dry_run:

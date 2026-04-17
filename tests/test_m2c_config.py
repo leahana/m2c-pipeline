@@ -20,6 +20,9 @@ class VertexConfigTests(unittest.TestCase):
             "M2C_WEBP_QUALITY": "92",
             "M2C_TEMPLATE": "chiikawa",
             "M2C_TRANSLATION_MODE": "vertex",
+            "M2C_TRANSLATION_TEMPERATURE": "0.15",
+            "M2C_TRANSLATION_TOP_P": "0.25",
+            "M2C_TRANSLATION_SEED": "23",
             "M2C_MAX_WORKERS": "3",
             "M2C_REQUEST_TIMEOUT": "120",
             "M2C_MAX_RETRIES": "4",
@@ -37,6 +40,9 @@ class VertexConfigTests(unittest.TestCase):
         self.assertEqual(config.output_dir, "./custom-output")
         self.assertEqual(config.output_format, "png")
         self.assertEqual(config.webp_quality, 92)
+        self.assertEqual(config.translation_temperature, 0.15)
+        self.assertEqual(config.translation_top_p, 0.25)
+        self.assertEqual(config.translation_seed, 23)
         self.assertEqual(config.max_workers, 3)
         self.assertEqual(config.request_timeout, 120)
         self.assertEqual(config.max_retries, 4)
@@ -77,6 +83,18 @@ class VertexConfigTests(unittest.TestCase):
 
     def test_validate_rejects_invalid_webp_quality(self) -> None:
         config = VertexConfig(project_id="demo-project", webp_quality=101)
+
+        with self.assertRaises(ValueError):
+            config.validate()
+
+    def test_validate_rejects_invalid_translation_temperature(self) -> None:
+        config = VertexConfig(project_id="demo-project", translation_temperature=2.5)
+
+        with self.assertRaises(ValueError):
+            config.validate()
+
+    def test_validate_rejects_invalid_translation_top_p(self) -> None:
+        config = VertexConfig(project_id="demo-project", translation_top_p=1.2)
 
         with self.assertRaises(ValueError):
             config.validate()

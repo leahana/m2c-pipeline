@@ -243,10 +243,13 @@ class MermaidTranslator:
             )
 
         logger.info(
-            "Translating block %d (type=%s, line=%d)",
+            "Translating block %d (type=%s, line=%d, temperature=%s, top_p=%s, seed=%s)",
             block.index,
             block.diagram_type,
             block.line_number,
+            self._config.translation_temperature,
+            self._config.translation_top_p,
+            self._config.translation_seed,
         )
         user_message = self._build_user_message(block)
         self._begin_retry_capture()
@@ -581,6 +584,9 @@ class MermaidTranslator:
             contents=user_message,
             config=types.GenerateContentConfig(
                 system_instruction=self._template.get_system_instruction(),
+                temperature=self._config.translation_temperature,
+                top_p=self._config.translation_top_p,
+                seed=self._config.translation_seed,
             ),
         )
         return response.text

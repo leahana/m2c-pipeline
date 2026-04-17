@@ -288,6 +288,9 @@ class BlockArtifacts:
             "config": {
                 "translation_mode": self._run_artifacts._config.translation_mode,
                 "gemini_model": self._run_artifacts._config.gemini_model,
+                "translation_temperature": self._run_artifacts._config.translation_temperature,
+                "translation_top_p": self._run_artifacts._config.translation_top_p,
+                "translation_seed": self._run_artifacts._config.translation_seed,
                 "image_model": self._run_artifacts._config.image_model,
                 "aspect_ratio": self._run_artifacts._config.aspect_ratio,
                 "template_name": self._run_artifacts._config.template_name,
@@ -306,6 +309,9 @@ class BlockArtifacts:
                 "retry_count": 0,
                 "attempt_count": 0,
                 "retry_events": [],
+                "temperature": self._run_artifacts._config.translation_temperature,
+                "top_p": self._run_artifacts._config.translation_top_p,
+                "seed": self._run_artifacts._config.translation_seed,
             },
             "paint": {
                 "status": "pending" if not self._run_artifacts._dry_run else "skipped",
@@ -372,6 +378,9 @@ class BlockArtifacts:
             "retry_count": len(retry_events),
             "attempt_count": len(retry_events) + 1,
             "retry_events": retry_events,
+            "temperature": self._run_artifacts._config.translation_temperature,
+            "top_p": self._run_artifacts._config.translation_top_p,
+            "seed": self._run_artifacts._config.translation_seed,
         }
         self._write_manifest()
 

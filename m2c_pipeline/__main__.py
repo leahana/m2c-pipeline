@@ -26,6 +26,7 @@ from .run_artifacts import RunArtifacts
 from .version import __version__
 
 MINIMUM_PYTHON = (3, 11)
+_ARG_UNSET = object()
 
 
 def _runtime_python_version() -> tuple[int, int]:
@@ -59,6 +60,13 @@ def _setup_logging(level: str, *, log_file: str | None = None) -> logging.Handle
         force=True,
     )
     return file_handler
+
+
+def _optional_int_arg(value: str) -> int | None:
+    normalized = value.strip().lower()
+    if normalized in {"none", "off", "random", "unset"}:
+        return None
+    return int(value)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -114,6 +122,30 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Saved image format (default: webp)",
     )
     parser.add_argument(
+        "--translation-seed",
+        default=_ARG_UNSET,
+        dest="translation_seed",
+        type=_optional_int_arg,
+        metavar="SEED|random",
+        help="Seed for prompt translation. Use 'random' to disable fixed seeding.",
+    )
+    parser.add_argument(
+        "--translation-temperature",
+        default=None,
+        dest="translation_temperature",
+        type=float,
+        metavar="FLOAT",
+        help="Temperature for Mermaid-to-prompt translation (default: 0.1)",
+    )
+    parser.add_argument(
+        "--translation-top-p",
+        default=None,
+        dest="translation_top_p",
+        type=float,
+        metavar="FLOAT",
+        help="Top-p for Mermaid-to-prompt translation (default: 0.2)",
+    )
+    parser.add_argument(
         "--webp-quality",
         default=None,
         dest="webp_quality",
@@ -164,11 +196,15 @@ def main(argv: list[str] | None = None) -> int:
         translation_mode=args.translation_mode,
         output_dir=args.output_dir,
         output_format=args.output_format,
+        translation_temperature=args.translation_temperature,
+        translation_top_p=args.translation_top_p,
         webp_quality=args.webp_quality,
         max_workers=args.max_workers,
         log_level=args.log_level,
     )
 
+    if args.translation_seed is not _ARG_UNSET:
+        config.translation_seed = args.translation_seed
     # Validate config before touching the filesystem so that dry-runs and
     # config errors never require a writable output directory.
     try:

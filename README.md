@@ -26,6 +26,7 @@ python -m m2c_pipeline path/to/input.md
 - ⚡ **并发生成** — `ThreadPoolExecutor` 并发，`tqdm` 进度条实时反馈
 - 🔁 **自动重试** — `tenacity` 指数退避，Vertex 调用失败时 Translate 和 Paint 阶段都有保护
 - 🧪 **离线 dry-run** — `fallback + --dry-run` 可在无云凭据、无项目 ID 的环境里验证提词流程
+- 🎯 **低随机度翻译** — Mermaid → prompt 默认使用低温、低 `top_p`、固定 seed，减少 prompt 漂移
 - 💾 **默认 WebP 输出** — 面向 GitHub 存储更省体积；切回 PNG 时仍保留内嵌 metadata
 - 🧾 **Sidecar 调试材料** — WebP 会在同目录写 `*.metadata.json`，保留 Mermaid / prompt / 关键参数
 - 🗂️ **Run 级排障归档** — 每次运行都会在 `output_dir/_runs/<run_id>/` 落日志、配置快照和按 block 分组的诊断材料
@@ -268,6 +269,9 @@ gcloud auth application-default set-quota-project YOUR_PROJECT_ID
 | `--translation-mode` | 翻译模式 | `vertex` |
 | `--aspect-ratio` | 图片宽高比（`1:1`/`4:3`/`3:4`/`16:9`/`9:16` 等） | `1:1` |
 | `--output-dir` | 输出目录 | `./output` |
+| `--translation-seed` | 翻译随机种子，`random` 可关闭固定 seed | `7` |
+| `--translation-temperature` | 翻译温度 | `0.1` |
+| `--translation-top-p` | 翻译 top-p | `0.2` |
 | `--output-format` | 保存格式（`webp` / `png`） | `webp` |
 | `--webp-quality` | WebP 质量（`0-100`） | `85` |
 | `--max-workers` | 并发数 | `2` |
@@ -290,6 +294,9 @@ gcloud auth application-default set-quota-project YOUR_PROJECT_ID
 | `M2C_WEBP_QUALITY` | | `85` | WebP 保存质量，`0-100` |
 | `M2C_TEMPLATE` | | `chiikawa` | 风格模板 |
 | `M2C_TRANSLATION_MODE` | | `vertex` | 翻译模式，`fallback` 仅用于 `--dry-run` |
+| `M2C_TRANSLATION_TEMPERATURE` | | `0.1` | Mermaid → prompt 的温度 |
+| `M2C_TRANSLATION_TOP_P` | | `0.2` | Mermaid → prompt 的 top-p |
+| `M2C_TRANSLATION_SEED` | | `7` | 翻译 seed；可设为 `random`/`none` 关闭固定种子 |
 | `M2C_MAX_WORKERS` | | `2` | 并发数 |
 | `M2C_REQUEST_TIMEOUT` | | `600` | 请求超时（秒） |
 | `M2C_LOG_LEVEL` | | `INFO` | 日志级别 |

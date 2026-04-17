@@ -121,6 +121,9 @@ class ImageStorage:
             "image_model": self._config.image_model,
             "template_name": self._config.template_name,
             "translation_mode": self._config.translation_mode,
+            "translation_seed": self._config.translation_seed,
+            "translation_temperature": self._config.translation_temperature,
+            "translation_top_p": self._config.translation_top_p,
             "output_format": self._output_format,
             "image_file": image_filename,
         }
