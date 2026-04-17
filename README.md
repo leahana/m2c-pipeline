@@ -22,11 +22,12 @@ python -m m2c_pipeline path/to/input.md
 
 - 🔍 **自动提取** — 正则解析 Markdown，支持多个 Mermaid block 批量处理
 - 🌸 **Chiikawa 风格** — Gemini 文本模型理解图结构，生成可爱教育插画提示词；自动按节点类型分配吉伊 / 小八 / 乌萨奇角色，保证视觉多样性
-- 🖼️ **Vertex AI 生图** — 通过 `google-genai` SDK 调用 Gemini 图片模型
+- 🖼️ **Vertex AI 生图** — 通过 `google-genai` SDK 调用 Gemini 图片模型，请求 `image_size` / `candidate_count` / `seed`
 - ⚡ **并发生成** — `ThreadPoolExecutor` 并发，`tqdm` 进度条实时反馈
 - 🔁 **自动重试** — `tenacity` 指数退避，Vertex 调用失败时 Translate 和 Paint 阶段都有保护
 - 🧪 **离线 dry-run** — `fallback + --dry-run` 可在无云凭据、无项目 ID 的环境里验证提词流程
 - 🎯 **低随机度翻译** — Mermaid → prompt 默认使用低温、低 `top_p`、固定 seed，减少 prompt 漂移
+- 🔎 **候选图自动挑选** — 仅在显式设置 `candidate_count > 1` 时启用；会再用 Gemini 视觉判断挑更适合中文渲染的一张
 - 💾 **默认 WebP 输出** — 面向 GitHub 存储更省体积；切回 PNG 时仍保留内嵌 metadata
 - 🧾 **Sidecar 调试材料** — WebP 会在同目录写 `*.metadata.json`，保留 Mermaid / prompt / 关键参数
 - 🗂️ **Run 级排障归档** — 每次运行都会在 `output_dir/_runs/<run_id>/` 落日志、配置快照和按 block 分组的诊断材料
@@ -270,6 +271,10 @@ gcloud auth application-default set-quota-project YOUR_PROJECT_ID
 | `--aspect-ratio` | 图片宽高比（`1:1`/`4:3`/`3:4`/`16:9`/`9:16` 等） | `1:1` |
 | `--output-dir` | 输出目录 | `./output` |
 | `--translation-seed` | 翻译随机种子，`random` 可关闭固定 seed | `7` |
+| `--image-model` | 图片模型 | `gemini-2.5-flash-image` |
+| `--image-size` | 生成分辨率（`1K` / `2K` / `4K`） | `2K` |
+| `--candidate-count` | 每个 block 请求的候选图数量（`1-4`），仅 `> 1` 时启用候选图选择 | `1` |
+| `--image-seed` | 生图随机种子，`random` 可关闭固定 seed | `7` |
 | `--translation-temperature` | 翻译温度 | `0.1` |
 | `--translation-top-p` | 翻译 top-p | `0.2` |
 | `--output-format` | 保存格式（`webp` / `png`） | `webp` |
@@ -287,10 +292,13 @@ gcloud auth application-default set-quota-project YOUR_PROJECT_ID
 | `M2C_PROJECT_ID` | ✅ | — | GCP project ID |
 | `M2C_LOCATION` | | `us-central1` | Gemini 文本调用区域 |
 | `M2C_GEMINI_MODEL` | | `gemini-2.0-flash` | 文本模型 |
-| `M2C_IMAGE_MODEL` | | `gemini-3.1-flash-image-preview` | 图片模型 |
+| `M2C_IMAGE_MODEL` | | `gemini-2.5-flash-image` | 图片模型 |
 | `M2C_ASPECT_RATIO` | | `1:1` | 图片宽高比，支持 `1:1`/`4:3`/`3:4`/`16:9`/`9:16`/`2:3`/`3:2`/`4:5`/`5:4` |
 | `M2C_OUTPUT_DIR` | | `./output` | 输出目录 |
 | `M2C_OUTPUT_FORMAT` | | `webp` | 保存格式，`webp` 更省体积，`png` 保留内嵌 metadata |
+| `M2C_IMAGE_SIZE` | | `2K` | 生图分辨率，支持 `1K`/`2K`/`4K` |
+| `M2C_IMAGE_CANDIDATE_COUNT` | | `1` | 每个 block 请求的候选图数量（`1-4`）；仅 `> 1` 时启用候选图选择 |
+| `M2C_IMAGE_SEED` | | `7` | 图片生成 seed；可设为 `random`/`none` 关闭固定种子 |
 | `M2C_WEBP_QUALITY` | | `85` | WebP 保存质量，`0-100` |
 | `M2C_TEMPLATE` | | `chiikawa` | 风格模板 |
 | `M2C_TRANSLATION_MODE` | | `vertex` | 翻译模式，`fallback` 仅用于 `--dry-run` |
@@ -347,6 +355,9 @@ block_index      在文档中的位置
 diagram_type     图类型（graph / sequenceDiagram / ...）
 aspect_ratio     本次生成使用的宽高比
 image_model      图片模型
+image_size       生图分辨率
+image_candidate_count 本次请求的候选图数量
+image_seed       生图 seed
 source_image_format Vertex 返回的原始格式
 ```
 

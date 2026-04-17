@@ -133,6 +133,8 @@ Generated images:
 | `--translation-mode` | `vertex`（云端）或 `fallback`（离线）| `vertex` |
 | `--aspect-ratio` | 图片宽高比 | `1:1` |
 | `--output-dir` | 输出目录 | `./output` |
+| `--image-size` | 生成分辨率（`1K` / `2K` / `4K`） | `2K` |
+| `--candidate-count` | 每个 block 的候选图数量（`1-4`），仅 `> 1` 时启用候选图选择 | `1` |
 | `--output-format` | 保存格式（`webp` / `png`） | `webp` |
 | `--webp-quality` | WebP 质量（`0-100`） | `85` |
 | `--dry-run` | 跳过图片生成 | 关 |

@@ -4,7 +4,7 @@
 
 - A Markdown file with one or more fenced `mermaid` code blocks.
 - Any diagram type is supported — the extractor matches any ` ```mermaid ` block regardless of diagram type. The diagram type is lowercased when stored (e.g. `sequencediagram`, `classdiagram`, `flowchart`).
-- Optional CLI overrides: `--template`, `--aspect-ratio`, `--output-dir`, `--output-format` (`webp` default, or `png`), `--webp-quality` (0–100, default 85), `--max-workers`, `--log-level`, `--translation-mode`, `--dry-run`.
+- Optional CLI overrides: `--template`, `--aspect-ratio`, `--output-dir`, `--output-format` (`webp` default, or `png`), `--image-size` (`1K`/`2K`/`4K`, default `2K`), `--candidate-count` (default `1`; candidate selection only runs when the value is greater than `1`), `--webp-quality` (0–100, default 85), `--max-workers`, `--log-level`, `--translation-mode`, and `--dry-run`.
 
 **Minimal input example** (`fixtures/minimal-input.md`):
 
@@ -50,6 +50,9 @@ Images are written to the output directory (default `./output`).
 | `diagram_type` | Detected diagram type, lowercased (e.g. `flowchart`, `sequencediagram`, `classdiagram`) |
 | `output_format` | `webp` or `png` |
 | `image_model` | Image generation model name |
+| `image_size` | Requested image resolution (`1K`, `2K`, or `4K`) |
+| `image_candidate_count` | Number of candidates requested from the image model |
+| `image_seed` | Seed used for image generation, if fixed |
 
 ### Run artifacts (`_runs/`)
 

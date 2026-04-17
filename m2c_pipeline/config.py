@@ -23,6 +23,7 @@ VALID_ASPECT_RATIOS = (
 )
 VALID_TRANSLATION_MODES = ("vertex", "fallback")
 VALID_OUTPUT_FORMATS = ("png", "webp")
+VALID_IMAGE_SIZES = ("1K", "2K", "4K")
 
 
 def _parse_optional_int(raw_value: str | None, *, default: int | None = None) -> int | None:
@@ -111,12 +112,15 @@ class VertexConfig:
     location: str = "us-central1"
     gemini_model: str = "gemini-2.0-flash"
     # Gemini native image generation model (uses google-genai SDK, location=global)
-    image_model: str = "gemini-3.1-flash-image-preview"
+    image_model: str = "gemini-2.5-flash-image"
 
     # === Image generation params ===
-    # Supported values for gemini-3.1-flash-image-preview / gemini-3-pro-image-preview:
+    # Supported values for Gemini image generation models:
     # "1:1","2:3","3:2","3:4","4:3","4:5","5:4","9:16","16:9","21:9"
     aspect_ratio: str = "1:1"
+    image_size: str = "2K"
+    image_candidate_count: int = 1
+    image_seed: int | None = 7
 
     # === Pipeline ===
     output_dir: str = "./output"
@@ -150,8 +154,11 @@ class VertexConfig:
             project_id=os.environ.get("M2C_PROJECT_ID", ""),
             location=os.environ.get("M2C_LOCATION", "us-central1"),
             gemini_model=os.environ.get("M2C_GEMINI_MODEL", "gemini-2.0-flash"),
-            image_model=os.environ.get("M2C_IMAGE_MODEL", "gemini-3.1-flash-image-preview"),
+            image_model=os.environ.get("M2C_IMAGE_MODEL", "gemini-2.5-flash-image"),
             aspect_ratio=os.environ.get("M2C_ASPECT_RATIO", "1:1"),
+            image_size=os.environ.get("M2C_IMAGE_SIZE", "2K"),
+            image_candidate_count=int(os.environ.get("M2C_IMAGE_CANDIDATE_COUNT", "1")),
+            image_seed=_parse_optional_int(os.environ.get("M2C_IMAGE_SEED"), default=7),
             output_dir=os.environ.get("M2C_OUTPUT_DIR", "./output"),
             output_format=os.environ.get("M2C_OUTPUT_FORMAT", "webp"),
             webp_quality=int(os.environ.get("M2C_WEBP_QUALITY", "85")),
@@ -194,10 +201,20 @@ class VertexConfig:
                 f"Invalid translation_mode '{self.translation_mode}'. "
                 f"Must be one of: {sorted(VALID_TRANSLATION_MODES)}"
             )
+        if self.image_size not in VALID_IMAGE_SIZES:
+            raise ValueError(
+                f"Invalid image_size '{self.image_size}'. "
+                f"Must be one of: {sorted(VALID_IMAGE_SIZES)}"
+            )
         if self.output_format not in VALID_OUTPUT_FORMATS:
             raise ValueError(
                 f"Invalid output_format '{self.output_format}'. "
                 f"Must be one of: {sorted(VALID_OUTPUT_FORMATS)}"
+            )
+        if not 1 <= self.image_candidate_count <= 4:
+            raise ValueError(
+                f"Invalid image_candidate_count '{self.image_candidate_count}'. "
+                "Must be between 1 and 4."
             )
         if not 0 <= self.webp_quality <= 100:
             raise ValueError(

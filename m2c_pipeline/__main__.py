@@ -17,6 +17,7 @@ from time import perf_counter
 
 from .config import (
     VALID_ASPECT_RATIOS,
+    VALID_IMAGE_SIZES,
     VALID_OUTPUT_FORMATS,
     VALID_TRANSLATION_MODES,
     VertexConfig,
@@ -92,6 +93,13 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Style template name (default: chiikawa)",
     )
     parser.add_argument(
+        "--image-model",
+        default=None,
+        dest="image_model",
+        metavar="MODEL",
+        help="Override the Gemini image model used for paint requests",
+    )
+    parser.add_argument(
         "--aspect-ratio",
         default=None,
         dest="aspect_ratio",
@@ -122,12 +130,36 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Saved image format (default: webp)",
     )
     parser.add_argument(
+        "--image-size",
+        default=None,
+        dest="image_size",
+        metavar="SIZE",
+        choices=list(VALID_IMAGE_SIZES),
+        help="Generated image size (default: 2K)",
+    )
+    parser.add_argument(
+        "--candidate-count",
+        default=None,
+        dest="image_candidate_count",
+        type=int,
+        metavar="N",
+        help="How many image candidates to request per block (default: 1)",
+    )
+    parser.add_argument(
         "--translation-seed",
         default=_ARG_UNSET,
         dest="translation_seed",
         type=_optional_int_arg,
         metavar="SEED|random",
         help="Seed for prompt translation. Use 'random' to disable fixed seeding.",
+    )
+    parser.add_argument(
+        "--image-seed",
+        default=_ARG_UNSET,
+        dest="image_seed",
+        type=_optional_int_arg,
+        metavar="SEED|random",
+        help="Seed for image generation. Use 'random' to disable fixed seeding.",
     )
     parser.add_argument(
         "--translation-temperature",
@@ -192,10 +224,13 @@ def main(argv: list[str] | None = None) -> int:
 
     config = VertexConfig.from_env().apply_overrides(
         template_name=args.template,
+        image_model=args.image_model,
         aspect_ratio=args.aspect_ratio,
         translation_mode=args.translation_mode,
         output_dir=args.output_dir,
         output_format=args.output_format,
+        image_size=args.image_size,
+        image_candidate_count=args.image_candidate_count,
         translation_temperature=args.translation_temperature,
         translation_top_p=args.translation_top_p,
         webp_quality=args.webp_quality,
@@ -205,6 +240,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.translation_seed is not _ARG_UNSET:
         config.translation_seed = args.translation_seed
+    if args.image_seed is not _ARG_UNSET:
+        config.image_seed = args.image_seed
+
     # Validate config before touching the filesystem so that dry-runs and
     # config errors never require a writable output directory.
     try:

@@ -105,7 +105,9 @@ class PipelineTests(unittest.TestCase):
                         "quota_type": "RPM (requests-per-minute burst limit)",
                     }
                 ],
-                "response_part_count": 2,
+                "candidate_image_count": 2,
+                "selected_candidate_index": 1,
+                "selection_method": "vision_selector",
             }
 
             with patch.object(pipeline, "_get_translator", return_value=translator):
@@ -132,6 +134,9 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(block_manifest["translation"]["backend_used"], "vertex")
             self.assertEqual(block_manifest["translation"]["retry_count"], 1)
             self.assertEqual(block_manifest["paint"]["retry_count"], 1)
+            self.assertEqual(block_manifest["paint"]["candidate_image_count"], 2)
+            self.assertEqual(block_manifest["paint"]["selected_candidate_index"], 1)
+            self.assertEqual(block_manifest["paint"]["selection_method"], "vision_selector")
             self.assertTrue((block_dir / "mermaid.mmd").exists())
             self.assertTrue((block_dir / "prompt.txt").exists())
             self.assertTrue((block_dir / "translation-request.txt").exists())
@@ -184,7 +189,10 @@ class PipelineTests(unittest.TestCase):
                         "error_message": "image model quota exhausted",
                         "quota_type": "RPM (requests-per-minute burst limit)",
                     }
-                ]
+                ],
+                "candidate_image_count": None,
+                "selected_candidate_index": None,
+                "selection_method": None,
             }
 
             with patch.object(pipeline, "_get_translator", return_value=translator):

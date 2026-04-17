@@ -90,6 +90,10 @@ class CliTests(unittest.TestCase):
                     self.assertEqual(manifest["config"]["output_format"], "webp")
                     self.assertEqual(manifest["config"]["webp_quality"], 85)
                     self.assertEqual(manifest["config"]["translation_seed"], 7)
+                    self.assertEqual(manifest["config"]["image_model"], "gemini-2.5-flash-image")
+                    self.assertEqual(manifest["config"]["image_size"], "2K")
+                    self.assertEqual(manifest["config"]["image_candidate_count"], 1)
+                    self.assertEqual(manifest["config"]["image_seed"], 7)
 
     def test_output_flags_override_config_in_run_manifest(self) -> None:
         stdout = io.StringIO()
@@ -115,6 +119,12 @@ class CliTests(unittest.TestCase):
                                 "0.15",
                                 "--translation-top-p",
                                 "0.25",
+                                "--image-size",
+                                "4K",
+                                "--candidate-count",
+                                "3",
+                                "--image-seed",
+                                "23",
                                 "--webp-quality",
                                 "91",
                             ]
@@ -128,3 +138,6 @@ class CliTests(unittest.TestCase):
                     self.assertIsNone(manifest["config"]["translation_seed"])
                     self.assertEqual(manifest["config"]["translation_temperature"], 0.15)
                     self.assertEqual(manifest["config"]["translation_top_p"], 0.25)
+                    self.assertEqual(manifest["config"]["image_size"], "4K")
+                    self.assertEqual(manifest["config"]["image_candidate_count"], 3)
+                    self.assertEqual(manifest["config"]["image_seed"], 23)

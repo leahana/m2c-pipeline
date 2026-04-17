@@ -55,6 +55,9 @@ class ImageStorageTests(unittest.TestCase):
             self.assertEqual(metadata["output_format"], "webp")
             self.assertEqual(metadata["image_file"], saved_path.name)
             self.assertEqual(metadata["translation_seed"], 7)
+            self.assertEqual(metadata["image_size"], "2K")
+            self.assertEqual(metadata["image_candidate_count"], 1)
+            self.assertEqual(metadata["image_seed"], 7)
             self.assertIn("generated_at", metadata)
             self.assertIn("output_image_bytes", metadata)
 
@@ -91,6 +94,9 @@ class ImageStorageTests(unittest.TestCase):
                 self.assertEqual(image.info["aspect_ratio"], "4:3")
                 self.assertEqual(image.info["source_image_format"], "jpeg")
                 self.assertEqual(image.info["translation_seed"], "7")
+                self.assertEqual(image.info["image_size"], "2K")
+                self.assertEqual(image.info["image_candidate_count"], "1")
+                self.assertEqual(image.info["image_seed"], "7")
                 self.assertIn("generated_at", image.info)
 
     def test_save_webp_cleans_up_partial_outputs_when_sidecar_write_fails(self) -> None:
