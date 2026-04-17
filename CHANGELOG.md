@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## [0.8.0](https://github.com/leahana/m2c-pipeline/compare/v0.7.1...v0.8.0) (2026-04-17)
+
+
+### Features
+
+* **output:** default to PNG output and sync storage/docs ([a1828d2](https://github.com/leahana/m2c-pipeline/commit/a1828d2810061b0692ba3ab320c7ae92db64c521))
+* **painter:** add opt-in multi-candidate selection ([e4e9b5b](https://github.com/leahana/m2c-pipeline/commit/e4e9b5b5f0e1545e31a9a9d58169fd7a082d0896))
+* PNG default output, multi-candidate selection, deterministic translation, and pre-merge fixes ([2a79a87](https://github.com/leahana/m2c-pipeline/commit/2a79a87080eb03bd261b15b67ea058f19d21275e))
+* **template:** tighten Chinese text rendering constraints ([4ad2819](https://github.com/leahana/m2c-pipeline/commit/4ad2819a8f97a8fa36862829e5a452fa398e63b6))
+* **translation:** add deterministic translation controls ([7c89df5](https://github.com/leahana/m2c-pipeline/commit/7c89df579fea6b34a60fce90279f943104e4807b))
+
+
+### Bug Fixes
+
+* **painter:** correct zero-candidate diagnostics and record selector_seed ([dca477e](https://github.com/leahana/m2c-pipeline/commit/dca477e8b480165b03d4e963ceec587ccd3af52d))
+
 ## [0.7.1](https://github.com/leahana/m2c-pipeline/compare/v0.7.0...v0.7.1) (2026-04-17)
 
 
