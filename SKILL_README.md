@@ -28,11 +28,11 @@ cd m2c-pipeline-generic-v<version>
 
 ### 3. 直接拉取 `skill` 分支
 
-全新拉取：
+全新拉取（skill 内容在克隆目录的 `m2c-pipeline/` 子目录下）：
 
 ```bash
 git clone --branch skill --single-branch https://github.com/leahana/m2c-pipeline.git
-cd m2c-pipeline
+cd m2c-pipeline/m2c-pipeline
 ./scripts/bootstrap_env.sh
 ```
 
@@ -41,6 +41,7 @@ cd m2c-pipeline
 ```bash
 git fetch origin skill
 git switch skill
+cd m2c-pipeline
 ```
 
 ## 快速开始
