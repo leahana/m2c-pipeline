@@ -130,8 +130,24 @@ class ImagePainter:
             self._set_last_result({"retry_events": retry_events})
             raise
 
+        if not candidate_images:
+            self._set_last_result(
+                {
+                    "retry_events": retry_events,
+                    "candidate_image_count": 0,
+                    "selected_candidate_index": None,
+                    "selection_method": "no_candidates_returned",
+                    "selector_seed": None,
+                }
+            )
+            raise RuntimeError(
+                f"Gemini returned no images for block {image_prompt.source_block.index}. "
+                "Possible content policy block. Prompt saved for manual review."
+            )
+
         selected_candidate_index = 0
         selection_method = "single_candidate"
+        selector_seed = None
         if self._config.image_candidate_count > 1 and len(candidate_images) > 1:
             try:
                 selected_candidate_index = self._select_best_candidate(
@@ -139,6 +155,7 @@ class ImagePainter:
                     candidate_images,
                 )
                 selection_method = "vision_selector"
+                selector_seed = self._config.translation_seed
             except Exception as exc:
                 logger.warning(
                     "Candidate selection failed for block %d; falling back to the first image: %s",
@@ -154,14 +171,9 @@ class ImagePainter:
                 "candidate_image_count": len(candidate_images),
                 "selected_candidate_index": selected_candidate_index,
                 "selection_method": selection_method,
+                "selector_seed": selector_seed,
             }
         )
-
-        if not candidate_images:
-            raise RuntimeError(
-                f"Gemini returned no images for block {image_prompt.source_block.index}. "
-                "Possible content policy block. Prompt saved for manual review."
-            )
 
         return candidate_images[selected_candidate_index]
 

@@ -21,9 +21,23 @@ class ImagePainterTests(unittest.TestCase):
             source_block=block,
         )
 
+    def test_paint_raises_when_no_candidates_returned(self) -> None:
+        painter = ImagePainter(VertexConfig(project_id="demo-project"))
+        prompt = self.make_prompt()
+
+        with patch.object(ImagePainter, "_call_gemini", return_value=[]):
+            with self.assertRaises(RuntimeError):
+                painter.paint(prompt)
+
+        diagnostics = painter.consume_last_result()
+        self.assertEqual(diagnostics["candidate_image_count"], 0)
+        self.assertIsNone(diagnostics["selected_candidate_index"])
+        self.assertEqual(diagnostics["selection_method"], "no_candidates_returned")
+        self.assertIsNone(diagnostics["selector_seed"])
+
     def test_paint_uses_selected_candidate_when_selector_succeeds(self) -> None:
         painter = ImagePainter(
-            VertexConfig(project_id="demo-project", image_candidate_count=2)
+            VertexConfig(project_id="demo-project", image_candidate_count=2, translation_seed=42)
         )
         prompt = self.make_prompt()
 
@@ -40,6 +54,7 @@ class ImagePainterTests(unittest.TestCase):
         self.assertEqual(diagnostics["candidate_image_count"], 2)
         self.assertEqual(diagnostics["selected_candidate_index"], 1)
         self.assertEqual(diagnostics["selection_method"], "vision_selector")
+        self.assertEqual(diagnostics["selector_seed"], 42)
 
     def test_paint_falls_back_to_first_candidate_when_selector_fails(self) -> None:
         painter = ImagePainter(
@@ -81,6 +96,7 @@ class ImagePainterTests(unittest.TestCase):
         self.assertEqual(diagnostics["candidate_image_count"], 1)
         self.assertEqual(diagnostics["selected_candidate_index"], 0)
         self.assertEqual(diagnostics["selection_method"], "single_candidate")
+        self.assertIsNone(diagnostics["selector_seed"])
 
     def test_call_gemini_passes_size_seed_and_candidate_count(self) -> None:
         config = VertexConfig(

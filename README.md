@@ -112,7 +112,7 @@ cp .env.example .env
 | 🔍 Extract | `extractor.py` | 正则提取 ```` ```mermaid ```` 块，返回 `MermaidBlock` |
 | 🌸 Translate | `translator.py` | Gemini 文本模型生成 `ImagePrompt`，失败时用本地 fallback |
 | 🖼️ Paint | `painter.py` | Gemini 图片模型生成原始图片字节 |
-| 💾 Store | `storage.py` | 默认保存 WebP，写入 sidecar / PNG metadata，并保留失败 prompt 与 block 级排障材料 |
+| 💾 Store | `storage.py` | 默认保存 PNG 并嵌入 metadata；`--output-format=webp` 时写 sidecar JSON；并保留失败 prompt 与 block 级排障材料 |
 
 ---
 

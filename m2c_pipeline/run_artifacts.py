@@ -337,6 +337,7 @@ class BlockArtifacts:
                 "candidate_image_count": None,
                 "selected_candidate_index": None,
                 "selection_method": None,
+                "selector_seed": None,
                 "result_bytes": None,
             },
             "output": {
@@ -425,6 +426,7 @@ class BlockArtifacts:
             "candidate_image_count": diagnostics.get("candidate_image_count"),
             "selected_candidate_index": diagnostics.get("selected_candidate_index"),
             "selection_method": diagnostics.get("selection_method"),
+            "selector_seed": diagnostics.get("selector_seed"),
             "result_bytes": image_byte_count,
         }
         self._write_manifest()
@@ -451,6 +453,7 @@ class BlockArtifacts:
             "candidate_image_count": diagnostics.get("candidate_image_count"),
             "selected_candidate_index": diagnostics.get("selected_candidate_index"),
             "selection_method": diagnostics.get("selection_method"),
+            "selector_seed": diagnostics.get("selector_seed"),
             "result_bytes": None,
         }
         self._manifest["failure"] = {
