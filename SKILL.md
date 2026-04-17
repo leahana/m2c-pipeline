@@ -1,6 +1,6 @@
 ---
 name: m2c-pipeline
-description: Converts Mermaid diagrams in Markdown into Chiikawa-style illustrated images (WebP by default, PNG via --output-format=png) via the Vertex AI backend. Use when the user wants to generate or dry-run images from Mermaid fenced blocks in a Markdown file. Do not use when the task is general Markdown editing, authoring Mermaid syntax without execution, or any Gemini API-key workflow.
+description: Converts Mermaid diagrams in Markdown into Chiikawa-style illustrated images (PNG by default, WebP via --output-format=webp) via the Vertex AI backend. Use when the user wants to generate or dry-run images from Mermaid fenced blocks in a Markdown file. Do not use when the task is general Markdown editing, authoring Mermaid syntax without execution, or any Gemini API-key workflow.
 ---
 
 # m2c-pipeline
@@ -99,7 +99,7 @@ If neither is true, pause and guide the user via [references/vertex-auth.md](ref
 **Phase 4 — Report results**
 
 - Dry-run: report the prompt generation flow.
-- Live: report the generated image paths (WebP by default; each has a `.metadata.json` sidecar) and note any `*_FAILED.txt` artifacts. For PNG output (`--output-format=png`), metadata is embedded directly in the PNG.
+- Live: report the generated image paths (PNG by default; metadata is embedded directly in the PNG) and note any `*_FAILED.txt` artifacts. For WebP output (`--output-format=webp`), each image has a `.metadata.json` sidecar.
 - Failure: surface any `*_FAILED.txt` artifact and consult [references/failure-recovery.md](references/failure-recovery.md).
 
 ## Guardrails

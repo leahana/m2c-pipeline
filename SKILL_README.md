@@ -109,15 +109,15 @@ Extracting mermaid blocks from your-file.md ...
 Found 2 mermaid block(s).
 Translating and painting blocks ...  2/2
 Generated images:
-  ./output/diagram_20260416_120000_00.webp
-  ./output/diagram_20260416_120001_01.webp
+  ./output/diagram_20260416_120000_00.png
+  ./output/diagram_20260416_120001_01.png
 ```
 
-默认会生成 WebP 文件，并在同目录写出同名 `*.metadata.json` sidecar，记录 Mermaid、最终 prompt、模板、时间戳和关键参数。
+默认会生成 PNG 文件，并把 Mermaid、最终 prompt、模板、时间戳和关键参数直接写进 PNG metadata。
 
-如果你改用 `--output-format png`，则 metadata 会直接内嵌进 PNG，不再写 sidecar。
+如果你改用 `--output-format webp`，则 metadata 会写到同名 `.metadata.json` sidecar。
 
-每次正式运行还会在输出目录下保留 `runs/<timestamp>/` 形式的排障材料，包括：
+每次正式运行还会在输出目录下保留 `_runs/<run_id>/` 形式的排障材料，包括：
 
 - `run.json`：本次运行的 CLI 入参、最终配置和 block manifest
 - `logs/run.log`：完整日志落盘
@@ -133,10 +133,10 @@ Generated images:
 | `--translation-mode` | `vertex`（云端）或 `fallback`（离线）| `vertex` |
 | `--aspect-ratio` | 图片宽高比 | `1:1` |
 | `--output-dir` | 输出目录 | `./output` |
+| `--output-format` | 保存格式（`png` / `webp`） | `png` |
 | `--image-size` | 生成分辨率（`1K` / `2K` / `4K`） | `2K` |
 | `--candidate-count` | 每个 block 的候选图数量（`1-4`），仅 `> 1` 时启用候选图选择 | `1` |
-| `--output-format` | 保存格式（`webp` / `png`） | `webp` |
-| `--webp-quality` | WebP 质量（`0-100`） | `85` |
+| `--webp-quality` | WebP 质量（`0-100`） | `95` |
 | `--dry-run` | 跳过图片生成 | 关 |
 | `--max-workers` | 并发数 | `2` |
 | `--log-level` | 日志级别（`DEBUG`/`INFO`/`WARNING`/`ERROR`）| `INFO` |

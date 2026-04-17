@@ -20,9 +20,43 @@ def build_image_bytes(image_format: str) -> bytes:
 
 
 class ImageStorageTests(unittest.TestCase):
-    def test_save_writes_webp_with_sidecar_metadata_by_default(self) -> None:
+    def test_save_writes_png_with_embedded_metadata_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             config = VertexConfig(project_id="demo-project", output_dir=tmpdir)
+            storage = ImageStorage(config)
+            block = MermaidBlock(
+                index=0,
+                source="flowchart LR\nA[开始] --> B[结束]",
+                diagram_type="flowchart",
+                line_number=3,
+            )
+
+            saved_path = storage.save(
+                build_image_bytes("PNG"),
+                block,
+                "demo prompt",
+                aspect_ratio="1:1",
+            )
+
+            self.assertTrue(saved_path.exists())
+            self.assertEqual(saved_path.suffix, ".png")
+            with Image.open(saved_path) as image:
+                self.assertEqual(image.format, "PNG")
+                self.assertEqual(image.info["mermaid_source"], block.source)
+                self.assertEqual(image.info["image_prompt"], "demo prompt")
+                self.assertEqual(image.info["image_size"], "2K")
+                self.assertEqual(image.info["image_candidate_count"], "1")
+                self.assertEqual(image.info["translation_seed"], "7")
+
+            self.assertFalse(saved_path.with_suffix(".metadata.json").exists())
+
+    def test_save_webp_writes_sidecar_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config = VertexConfig(
+                project_id="demo-project",
+                output_dir=tmpdir,
+                output_format="webp",
+            )
             storage = ImageStorage(config)
             block = MermaidBlock(
                 index=0,
@@ -54,54 +88,20 @@ class ImageStorageTests(unittest.TestCase):
             self.assertEqual(metadata["source_image_format"], "png")
             self.assertEqual(metadata["output_format"], "webp")
             self.assertEqual(metadata["image_file"], saved_path.name)
-            self.assertEqual(metadata["translation_seed"], 7)
             self.assertEqual(metadata["image_size"], "2K")
             self.assertEqual(metadata["image_candidate_count"], 1)
             self.assertEqual(metadata["image_seed"], 7)
+            self.assertEqual(metadata["translation_seed"], 7)
             self.assertIn("generated_at", metadata)
             self.assertIn("output_image_bytes", metadata)
 
-    def test_save_png_writes_embedded_metadata(self) -> None:
+    def test_save_webp_cleans_up_partial_outputs_when_sidecar_write_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             config = VertexConfig(
                 project_id="demo-project",
                 output_dir=tmpdir,
-                output_format="png",
+                output_format="webp",
             )
-            storage = ImageStorage(config)
-            block = MermaidBlock(
-                index=1,
-                source="graph TD\nA --> B",
-                diagram_type="graph",
-                line_number=6,
-            )
-
-            saved_path = storage.save(
-                build_image_bytes("JPEG"),
-                block,
-                "png prompt",
-                aspect_ratio="4:3",
-            )
-
-            self.assertTrue(saved_path.exists())
-            self.assertEqual(saved_path.suffix, ".png")
-            self.assertFalse(saved_path.with_suffix(".metadata.json").exists())
-            with Image.open(saved_path) as image:
-                self.assertEqual(image.info["mermaid_source"], block.source)
-                self.assertEqual(image.info["image_prompt"], "png prompt")
-                self.assertEqual(image.info["block_index"], "1")
-                self.assertEqual(image.info["diagram_type"], "graph")
-                self.assertEqual(image.info["aspect_ratio"], "4:3")
-                self.assertEqual(image.info["source_image_format"], "jpeg")
-                self.assertEqual(image.info["translation_seed"], "7")
-                self.assertEqual(image.info["image_size"], "2K")
-                self.assertEqual(image.info["image_candidate_count"], "1")
-                self.assertEqual(image.info["image_seed"], "7")
-                self.assertIn("generated_at", image.info)
-
-    def test_save_webp_cleans_up_partial_outputs_when_sidecar_write_fails(self) -> None:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            config = VertexConfig(project_id="demo-project", output_dir=tmpdir)
             storage = ImageStorage(config)
             block = MermaidBlock(
                 index=2,

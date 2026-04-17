@@ -61,6 +61,7 @@ class PipelineTests(unittest.TestCase):
             config = VertexConfig(
                 project_id="demo-project",
                 output_dir=str(output_dir),
+                output_format="webp",
                 max_workers=1,
             )
             run_artifacts = RunArtifacts(

@@ -4,7 +4,7 @@
 
 - A Markdown file with one or more fenced `mermaid` code blocks.
 - Any diagram type is supported — the extractor matches any ` ```mermaid ` block regardless of diagram type. The diagram type is lowercased when stored (e.g. `sequencediagram`, `classdiagram`, `flowchart`).
-- Optional CLI overrides: `--template`, `--aspect-ratio`, `--output-dir`, `--output-format` (`webp` default, or `png`), `--image-size` (`1K`/`2K`/`4K`, default `2K`), `--candidate-count` (default `1`; candidate selection only runs when the value is greater than `1`), `--webp-quality` (0–100, default 85), `--max-workers`, `--log-level`, `--translation-mode`, and `--dry-run`.
+- Optional CLI overrides: `--template`, `--aspect-ratio`, `--output-dir`, `--output-format` (`png` default, or `webp`), `--image-size` (`1K`/`2K`/`4K`, default `2K`), `--candidate-count` (default `1`; candidate selection only runs when the value is greater than `1`), `--webp-quality` (0–100, default 95), `--max-workers`, `--log-level`, `--translation-mode`, and `--dry-run`.
 
 **Minimal input example** (`fixtures/minimal-input.md`):
 
@@ -28,16 +28,16 @@ flowchart LR
 
 Images are written to the output directory (default `./output`).
 
-### Default: WebP output
+### Default: PNG output
 
-- **Filename format**: `diagram_YYYYMMDD_HHMMSS_NN.webp` where `NN` is the zero-padded block index.
+- **Filename format**: `diagram_YYYYMMDD_HHMMSS_NN.png` where `NN` is the zero-padded block index.
+- Metadata is embedded as PNG text chunks (readable with PIL or `exiftool`); no sidecar file is written.
+
+### WebP output (`--output-format=webp`)
+
+- **Filename format**: `diagram_YYYYMMDD_HHMMSS_NN.webp`
 - Metadata is written to a sidecar file: `diagram_YYYYMMDD_HHMMSS_NN.metadata.json` (same stem, `.metadata.json` suffix).
 - Sidecar write failure is treated as a storage error; the run is marked failed for that block.
-
-### PNG output (`--output-format=png`)
-
-- **Filename format**: `diagram_YYYYMMDD_HHMMSS_NN.png`
-- Metadata is embedded as PNG text chunks (readable with PIL or `exiftool`); no sidecar file is written.
 
 ### Metadata fields (both formats)
 
@@ -53,6 +53,7 @@ Images are written to the output directory (default `./output`).
 | `image_size` | Requested image resolution (`1K`, `2K`, or `4K`) |
 | `image_candidate_count` | Number of candidates requested from the image model |
 | `image_seed` | Seed used for image generation, if fixed |
+| `translation_seed` | Seed used for Mermaid-to-prompt translation, if fixed |
 
 ### Run artifacts (`_runs/`)
 

@@ -127,7 +127,7 @@ def _build_parser() -> argparse.ArgumentParser:
         dest="output_format",
         metavar="FMT",
         choices=list(VALID_OUTPUT_FORMATS),
-        help="Saved image format (default: webp)",
+        help="Saved image format (default: png)",
     )
     parser.add_argument(
         "--image-size",
@@ -183,7 +183,7 @@ def _build_parser() -> argparse.ArgumentParser:
         dest="webp_quality",
         type=int,
         metavar="N",
-        help="WebP quality for saved images, 0-100 (default: 85)",
+        help="WebP quality for saved images, 0-100 (default: 95)",
     )
     parser.add_argument(
         "--dry-run",
@@ -237,7 +237,6 @@ def main(argv: list[str] | None = None) -> int:
         max_workers=args.max_workers,
         log_level=args.log_level,
     )
-
     if args.translation_seed is not _ARG_UNSET:
         config.translation_seed = args.translation_seed
     if args.image_seed is not _ARG_UNSET:

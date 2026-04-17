@@ -296,6 +296,7 @@ class BlockArtifacts:
                 "image_candidate_count": self._run_artifacts._config.image_candidate_count,
                 "image_seed": self._run_artifacts._config.image_seed,
                 "aspect_ratio": self._run_artifacts._config.aspect_ratio,
+                "output_format": self._run_artifacts._config.output_format,
                 "template_name": self._run_artifacts._config.template_name,
                 "max_workers": self._run_artifacts._config.max_workers,
             },

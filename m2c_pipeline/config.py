@@ -124,8 +124,8 @@ class VertexConfig:
 
     # === Pipeline ===
     output_dir: str = "./output"
-    output_format: str = "webp"
-    webp_quality: int = 85
+    output_format: str = "png"
+    webp_quality: int = 95
     template_name: str = "chiikawa"
     translation_temperature: float = 0.1
     translation_top_p: float = 0.2
@@ -160,8 +160,8 @@ class VertexConfig:
             image_candidate_count=int(os.environ.get("M2C_IMAGE_CANDIDATE_COUNT", "1")),
             image_seed=_parse_optional_int(os.environ.get("M2C_IMAGE_SEED"), default=7),
             output_dir=os.environ.get("M2C_OUTPUT_DIR", "./output"),
-            output_format=os.environ.get("M2C_OUTPUT_FORMAT", "webp"),
-            webp_quality=int(os.environ.get("M2C_WEBP_QUALITY", "85")),
+            output_format=os.environ.get("M2C_OUTPUT_FORMAT", "png"),
+            webp_quality=int(os.environ.get("M2C_WEBP_QUALITY", "95")),
             template_name=os.environ.get("M2C_TEMPLATE", "chiikawa"),
             translation_temperature=float(
                 os.environ.get("M2C_TRANSLATION_TEMPERATURE", "0.1")
