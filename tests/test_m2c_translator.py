@@ -223,6 +223,9 @@ class ChiikawaTemplateTests(unittest.TestCase):
             "MAIN CONTENT MUST have exactly 3 major sections",
             instruction,
         )
+        self.assertIn("Render only pure Chinese text", instruction)
+        self.assertIn("Do NOT render dialogue", instruction)
+        self.assertIn("1–4 Chinese characters", instruction)
 
     def test_fallback_prompt_contains_no_old_japanese_terms(self) -> None:
         prompt = self.template.build_prompt(
@@ -240,3 +243,5 @@ class ChiikawaTemplateTests(unittest.TestCase):
         self.assertNotIn("ナガノ", prompt)
         self.assertIn("exactly three distinct main characters", prompt)
         self.assertIn("Keep each character visually distinct", prompt)
+        self.assertIn("one short Chinese title", prompt)
+        self.assertIn("one to four Chinese characters", prompt)

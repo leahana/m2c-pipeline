@@ -27,13 +27,12 @@ _TEMPLATE_SKELETON = """
 Chiikawa official manga style educational illustration, [ASPECT_RATIO], explaining [TOPIC].
 
 === TITLE ===
-"[MAIN_TITLE]" — floating typography, NOT anchored to any solid band or box; coral-pink (#FF8E9E) bold rounded font with White Outer Glow and Subtle Drop Shadow for legibility on light backgrounds; surrounded by small pastel flowers, twinkling stars, and tiny hearts woven naturally into the scene
-[SUBTITLE_IF_NEEDED]
+"[MAIN_TITLE]" — one short Chinese title only, single line, inside a solid pale rounded pill box with generous padding; dark charcoal bold rounded sans-serif; NO glow, NO gradient text, NO decorative text around the title
 
 === SCENE & LAYOUT ===
 Layout: [LAYOUT_TYPE] (e.g., problem-solution bridge crossing a gap / circular lifecycle flow / structured comparison table with checks and crosses / "do vs don't" split panel / input-process-output equation / vertical feature list / fishbone cause-effect diagram / narrowing funnel chart / iceberg surface-vs-hidden diagram / winding roadmap journey / layered technology stack, based on the logic of the MAIN CONTENT below)
 
-Background: Soft gradient cream (#FFF8E7) to [THEME_COLOR], minimal [DECORATIVE_ELEMENTS]
+Background: Soft gradient cream (#FFF8E7) to [THEME_COLOR], minimal [DECORATIVE_ELEMENTS], keep the area behind title and labels visually clean
 
 === MAIN CONTENT ===
 Use official Chiikawa characters such as Chiikawa / Hachiware / Usagi with clearly different appearances and roles
@@ -42,8 +41,7 @@ Character: [CHARACTER_NAME]
 - [CHARACTER_ACTION_AND_EXPRESSION]
 - [PROPS_OR_ITEMS]
 Visual: [KEY_VISUAL_ELEMENT]
-Label: "[LABEL_TEXT]" — inside a semi-transparent cloud-like blob (marshmallow-soft aesthetic, pure white at 70–80% opacity, NO hard border, soft edges blending into the background)
-[DIALOGUE_OR_ANNOTATION]
+Label: "[LABEL_TEXT]" — one short pure-Chinese label, single line, 1–4 Chinese characters only, inside a solid light rounded pill/box with generous padding; dark charcoal bold rounded sans-serif; crisp edge, no transparency, no texture, no glow
 
 [CONTENT_SECTION_2]
 [Similar structure as above]
@@ -51,23 +49,21 @@ Label: "[LABEL_TEXT]" — inside a semi-transparent cloud-like blob (marshmallow
 [CONTENT_SECTION_N]
 [Continue as needed]
 
-=== KEY CONCEPTS ===
-[NUMBER] floating info boxes; each box uses a semi-transparent cloud-like blob background (marshmallow-soft, pure white at 70–80% opacity, no hard border), text in dark charcoal (#2D2D2D), medium-weight sans-serif:
-Box 1: "[CONCEPT_1]"
-Box 2: "[CONCEPT_2]"
-Box N: "[CONCEPT_N]"
-
 === CHIIKAWA STYLE ===
 Official Chiikawa aesthetic: round bodies, large sparkly eyes, pink blush marks, tiny limbs, super deformed proportions, gentle line art
 
 === TEXT RENDERING ===
-Typography rules (CRITICAL — apply to every label, title, and annotation):
-- Title: floating typography with White Outer Glow or Subtle Drop Shadow — NO solid background band; title integrates naturally into the illustrated scene with decorative Chiikawa elements around it
-- All labels placed inside semi-transparent cloud-like blobs (marshmallow-soft, pure white at 70–80% opacity, no hard borders) — soft edges naturally blend into the illustrated background
-- Font: bold (600–700) rounded sans-serif for title; medium-weight (500–600) for labels; NO thin, cursive, or brush-stroke fonts
-- Text color: dark charcoal (#2D2D2D) on the light blob background; minimum contrast 4.5:1
+Typography rules (CRITICAL — apply to every rendered title or label):
+- Render only 1 short Chinese title and 2–4 short Chinese labels total across the whole image
+- Render only pure Chinese text in the image; do NOT render English, roman letters, parentheses, arrows, mixed-language labels, or punctuation-heavy strings
+- Every rendered label must be single-line and 1–4 Chinese characters; abbreviate long Mermaid labels into short Chinese summaries
+- Do NOT render dialogue, speech bubbles, paragraph annotations, callout paragraphs, or key concept boxes in the image
+- Title and labels must sit inside solid light pill boxes with generous padding, clean edges, and high contrast; NO transparency, NO textured text backgrounds, NO glow on labels
+- Font: bold (600–700) rounded sans-serif; NO thin, cursive, handwritten, or brush-stroke fonts
+- Text color: dark charcoal (#2D2D2D) on a solid pale background; minimum contrast 4.5:1
 - Chinese characters: every stroke and radical must be Fully Formed and Vector-style clarity — no hairline breaks, no missing components, no pixelation
-- Smooth anti-aliased edges; absolutely NO cracked, fragmented, or glitchy strokes
+- Smooth anti-aliased edges; absolutely NO cracked, fragmented, glitchy, blurry, or overlapping text
+- Negative constraints: no handwritten text, no stylized calligraphy, no fragmented strokes, no overlapping text, no text on textured background, no glow on labels
 
 === MOOD ===
 [EMOTIONAL_TONE], [EDUCATIONAL_GOAL], cute but informative
@@ -79,11 +75,13 @@ _SYSTEM_INSTRUCTION = """
 You are an expert Chiikawa manga artist and educational illustrator.
 Your task: analyse the given Mermaid diagram and produce a complete image generation prompt in the structured Chiikawa template format below.
 
-## Label Preservation (HIGHEST PRIORITY)
-- All Chinese text from the Mermaid diagram nodes and labels MUST be kept VERBATIM in the prompt. DO NOT translate them to English.
-- Use the original Chinese for Labels, Annotations, Dialogue, Key Concepts, and Title.
-- You may add English translations in parentheses AFTER the Chinese, e.g. Label: "终止进程 (Terminate)"
-- **STRICTLY FORBIDDEN**: Do NOT use Japanese script anywhere in the prompt. This includes internal prompt wording, character dialogue, speech bubbles, annotations, titles, and any text intended for rendering. All character speech and dialogue must be written in Chinese.
+## Text Minimization (HIGHEST PRIORITY)
+- The image should render as little text as possible: exactly 1 short Chinese title and only 2–4 short Chinese labels in total across the whole image.
+- Render only pure Chinese text in the image. Do NOT render English, roman letters, parentheses, arrows, punctuation-heavy strings, or bilingual text inside the image.
+- Preserve the meaning of Mermaid node text, but abbreviate long rendered labels into short Chinese summaries of 1–4 Chinese characters.
+- Move long explanations into composition, character action, props, icons, and spatial layout instead of extra text.
+- Do NOT render dialogue, speech bubbles, paragraph annotations, callout paragraphs, or key concept boxes in the image.
+- **STRICTLY FORBIDDEN**: Do NOT use Japanese script anywhere in the prompt. This includes internal prompt wording, rendered labels, titles, and any text intended for rendering.
 
 ## Character Mapping Rules
 Use official Chiikawa characters with distinct roles and clearly different visual anchors:
@@ -114,14 +112,13 @@ ASPECT_RATIO: <1:1 | 4:3 | 16:9 | 9:16>
 
 ## Filling Instructions
 - [TOPIC]: a short description of what the diagram explains
-- [MAIN_TITLE]: use the original Chinese from the diagram context, or create a concise Chinese title
-- [SUBTITLE_IF_NEEDED]: a Chinese subtitle, or leave blank
+- [MAIN_TITLE]: use a concise Chinese title, ideally 2–4 Chinese characters
 - [LAYOUT_TYPE]: pick the best layout descriptor for this diagram's shape
 - [THEME_COLOR]: a complementary pastel hex colour
-- Fill each [CONTENT_SECTION] with: Character, Action, Props, Visual, Label (in Chinese), and Dialogue/Annotation (in Chinese)
+- Fill each [CONTENT_SECTION] with: Character, Action, Props, Visual, and one short Label (in Chinese)
 - For each section, explicitly mention the character's visual anchor traits so the rendered cast stays distinct.
-- [KEY_CONCEPTS]: summarize key takeaways from the diagram in Chinese
-- Keep label text short (≤ 6 Chinese characters) for crisp rendering; if longer, abbreviate and explain in KEY CONCEPTS
+- Use only 2–4 Label lines total across the whole image and omit a label when the visual cue is enough.
+- Keep every rendered label single-line and ≤ 4 Chinese characters; use pure Chinese only, with no parentheses or English.
 """
 
 
@@ -266,10 +263,13 @@ class ChiikawaTemplate(StyleTemplate):
             f"aspect ratio {aspect_ratio}, explaining {topic}. "
             f"{simple_cast_line}"
             f"Soft gradient background from cream (#FFF8E7) to light blue (#E8F4FD), "
-            f"minimal twinkling stars and tiny hearts as decoration. "
-            f"Title in floating typography — coral-pink (#FF8E9E) bold rounded font with "
-            f"White Outer Glow and Subtle Drop Shadow, surrounded by small pastel flowers; "
-            f"NO solid header band. "
+            f"minimal twinkling stars and tiny hearts as decoration, while keeping the text areas clean. "
+            f"Render only one short Chinese title and two to four short Chinese labels total. "
+            f"All rendered text must be pure Chinese, single-line, and one to four Chinese characters only; "
+            f"abbreviate long Mermaid labels into short Chinese summaries. "
+            f"Do not render dialogue, speech bubbles, paragraph annotations, or key concept boxes. "
+            f"Title and labels must sit inside solid pale rounded pill boxes with generous padding, "
+            f"dark charcoal bold rounded sans-serif, clean edges, high contrast, no transparency, no texture, and no glow. "
             f"Chiikawa (white rounded body, black dot eyes, pink triple-line blush) "
             f"stands at the start looking curious. "
             f"Hachiware (white cat with dusty-blue (#81A9D3) ear and head markings, the blue fur parts in an inverted-V at the forehead center revealing the white face — a smooth color boundary with no lines or cracks; holding a pointer) "
@@ -279,10 +279,9 @@ class ChiikawaTemplate(StyleTemplate):
             f"Nodes as soft rounded bubbles, hand-drawn style arrows. "
             f"Official manga-inspired line art: ultra-minimalist thin black outlines, no shading, "
             f"flat pastel fills, 1:1 head-to-body ratio, warm and healing. "
-            f"All text labels inside semi-transparent cloud-like blobs (marshmallow-soft, "
-            f"pure white at 70–80% opacity, no hard border), medium-weight sans-serif, "
-            f"dark charcoal on blob background; Chinese characters Fully Formed with "
-            f"Vector-style clarity, no cracked or missing strokes. "
+            f"Chinese characters Fully Formed with Vector-style clarity, no cracked or missing strokes, "
+            f"no handwritten text, no stylized calligraphy, no fragmented strokes, no overlapping text, "
+            f"no text on textured background, and no glow on labels. "
             f"Keep each character visually distinct by repeating species, colors, face details, "
             f"props, and pose cues in every main section."
         )
