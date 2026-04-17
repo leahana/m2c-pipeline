@@ -15,11 +15,17 @@ class VertexConfigTests(unittest.TestCase):
             "M2C_GEMINI_MODEL": "gemini-demo",
             "M2C_IMAGE_MODEL": "image-demo",
             "M2C_ASPECT_RATIO": "16:9",
+            "M2C_IMAGE_SIZE": "4K",
+            "M2C_IMAGE_CANDIDATE_COUNT": "3",
+            "M2C_IMAGE_SEED": "17",
             "M2C_OUTPUT_DIR": "./custom-output",
             "M2C_OUTPUT_FORMAT": "png",
             "M2C_WEBP_QUALITY": "92",
             "M2C_TEMPLATE": "chiikawa",
             "M2C_TRANSLATION_MODE": "vertex",
+            "M2C_TRANSLATION_TEMPERATURE": "0.15",
+            "M2C_TRANSLATION_TOP_P": "0.25",
+            "M2C_TRANSLATION_SEED": "23",
             "M2C_MAX_WORKERS": "3",
             "M2C_REQUEST_TIMEOUT": "120",
             "M2C_MAX_RETRIES": "4",
@@ -34,9 +40,15 @@ class VertexConfigTests(unittest.TestCase):
         self.assertEqual(config.gemini_model, "gemini-demo")
         self.assertEqual(config.image_model, "image-demo")
         self.assertEqual(config.aspect_ratio, "16:9")
+        self.assertEqual(config.image_size, "4K")
+        self.assertEqual(config.image_candidate_count, 3)
+        self.assertEqual(config.image_seed, 17)
         self.assertEqual(config.output_dir, "./custom-output")
         self.assertEqual(config.output_format, "png")
         self.assertEqual(config.webp_quality, 92)
+        self.assertEqual(config.translation_temperature, 0.15)
+        self.assertEqual(config.translation_top_p, 0.25)
+        self.assertEqual(config.translation_seed, 23)
         self.assertEqual(config.max_workers, 3)
         self.assertEqual(config.request_timeout, 120)
         self.assertEqual(config.max_retries, 4)
@@ -46,10 +58,17 @@ class VertexConfigTests(unittest.TestCase):
     def test_apply_overrides_updates_non_none_values(self) -> None:
         config = VertexConfig(project_id="demo-project", aspect_ratio="1:1")
 
-        updated = config.apply_overrides(aspect_ratio="9:16", log_level="WARNING")
+        updated = config.apply_overrides(
+            aspect_ratio="9:16",
+            image_size="4K",
+            image_seed=None,
+            log_level="WARNING",
+        )
 
         self.assertEqual(updated.project_id, "demo-project")
         self.assertEqual(updated.aspect_ratio, "9:16")
+        self.assertEqual(updated.image_size, "4K")
+        self.assertEqual(updated.image_seed, 7)
         self.assertEqual(updated.log_level, "WARNING")
 
     def test_validate_requires_project_id(self) -> None:
@@ -75,8 +94,32 @@ class VertexConfigTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             config.validate()
 
+    def test_validate_rejects_invalid_image_size(self) -> None:
+        config = VertexConfig(project_id="demo-project", image_size="8K")
+
+        with self.assertRaises(ValueError):
+            config.validate()
+
+    def test_validate_rejects_invalid_candidate_count(self) -> None:
+        config = VertexConfig(project_id="demo-project", image_candidate_count=0)
+
+        with self.assertRaises(ValueError):
+            config.validate()
+
     def test_validate_rejects_invalid_webp_quality(self) -> None:
         config = VertexConfig(project_id="demo-project", webp_quality=101)
+
+        with self.assertRaises(ValueError):
+            config.validate()
+
+    def test_validate_rejects_invalid_translation_temperature(self) -> None:
+        config = VertexConfig(project_id="demo-project", translation_temperature=2.5)
+
+        with self.assertRaises(ValueError):
+            config.validate()
+
+    def test_validate_rejects_invalid_translation_top_p(self) -> None:
+        config = VertexConfig(project_id="demo-project", translation_top_p=1.2)
 
         with self.assertRaises(ValueError):
             config.validate()
@@ -109,6 +152,18 @@ class VertexConfigTests(unittest.TestCase):
 
         self.assertEqual(config.project_id, "dotenv-project")
         self.assertEqual(config.max_workers, 7)
+
+    def test_from_env_allows_disabling_seed_values(self) -> None:
+        env = {
+            "M2C_PROJECT_ID": "demo-project",
+            "M2C_IMAGE_SEED": "random",
+            "M2C_TRANSLATION_SEED": "none",
+        }
+        with patch.dict(os.environ, env, clear=False):
+            config = VertexConfig.from_env()
+
+        self.assertIsNone(config.image_seed)
+        self.assertIsNone(config.translation_seed)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@
 
 ## 💡 它做什么
 
-`m2c_pipeline` 是一条单线流水线：自动读取 Markdown 文件 → 提取所有 Mermaid 代码块 → 用 Gemini 翻译成图片提示词 → 调用 Vertex AI 生成图片 → 默认转存为 WebP 并保留排障材料。
+`m2c_pipeline` 是一条单线流水线：自动读取 Markdown 文件 → 提取所有 Mermaid 代码块 → 用 Gemini 翻译成图片提示词 → 调用 Vertex AI 生成图片 → 默认保存为 PNG 做字形质量基线，并保留排障材料。
 
 ```bash
 python -m m2c_pipeline path/to/input.md
@@ -22,12 +22,14 @@ python -m m2c_pipeline path/to/input.md
 
 - 🔍 **自动提取** — 正则解析 Markdown，支持多个 Mermaid block 批量处理
 - 🌸 **Chiikawa 风格** — Gemini 文本模型理解图结构，生成可爱教育插画提示词；自动按节点类型分配吉伊 / 小八 / 乌萨奇角色，保证视觉多样性
-- 🖼️ **Vertex AI 生图** — 通过 `google-genai` SDK 调用 Gemini 图片模型
+- 🖼️ **Vertex AI 生图** — 通过 `google-genai` SDK 调用 Gemini 图片模型，请求 `image_size` / `candidate_count` / `seed`
 - ⚡ **并发生成** — `ThreadPoolExecutor` 并发，`tqdm` 进度条实时反馈
 - 🔁 **自动重试** — `tenacity` 指数退避，Vertex 调用失败时 Translate 和 Paint 阶段都有保护
 - 🧪 **离线 dry-run** — `fallback + --dry-run` 可在无云凭据、无项目 ID 的环境里验证提词流程
-- 💾 **默认 WebP 输出** — 面向 GitHub 存储更省体积；切回 PNG 时仍保留内嵌 metadata
-- 🧾 **Sidecar 调试材料** — WebP 会在同目录写 `*.metadata.json`，保留 Mermaid / prompt / 关键参数
+- 🎯 **低随机度翻译** — Mermaid → prompt 默认使用低温、低 `top_p`、固定 seed，减少 prompt 漂移
+- 🔎 **候选图自动挑选** — 仅在显式设置 `candidate_count > 1` 时启用；会再用 Gemini 视觉判断挑更适合中文渲染的一张
+- 💾 **默认 PNG 输出** — 先观察模型原始中文渲染质量；需要更省体积时可切回 WebP
+- 🧾 **Sidecar 调试材料** — WebP 会在同目录写 `*.metadata.json`，PNG 则继续保留内嵌 metadata
 - 🗂️ **Run 级排障归档** — 每次运行都会在 `output_dir/_runs/<run_id>/` 落日志、配置快照和按 block 分组的诊断材料
 - 🛡️ **纯 Vertex AI** — 只走 ADC 认证，不依赖 Google AI Studio API key
 
@@ -110,7 +112,7 @@ cp .env.example .env
 | 🔍 Extract | `extractor.py` | 正则提取 ```` ```mermaid ```` 块，返回 `MermaidBlock` |
 | 🌸 Translate | `translator.py` | Gemini 文本模型生成 `ImagePrompt`，失败时用本地 fallback |
 | 🖼️ Paint | `painter.py` | Gemini 图片模型生成原始图片字节 |
-| 💾 Store | `storage.py` | 默认保存 WebP，写入 sidecar / PNG metadata，并保留失败 prompt 与 block 级排障材料 |
+| 💾 Store | `storage.py` | 默认保存 PNG 并嵌入 metadata；`--output-format=webp` 时写 sidecar JSON；并保留失败 prompt 与 block 级排障材料 |
 
 ---
 
@@ -265,11 +267,18 @@ gcloud auth application-default set-quota-project YOUR_PROJECT_ID
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
 | `--template` | 风格模板 | `chiikawa` |
+| `--image-model` | 图片模型 | `gemini-2.5-flash-image` |
 | `--translation-mode` | 翻译模式 | `vertex` |
 | `--aspect-ratio` | 图片宽高比（`1:1`/`4:3`/`3:4`/`16:9`/`9:16` 等） | `1:1` |
 | `--output-dir` | 输出目录 | `./output` |
-| `--output-format` | 保存格式（`webp` / `png`） | `webp` |
-| `--webp-quality` | WebP 质量（`0-100`） | `85` |
+| `--output-format` | 保存格式（`png` / `webp`） | `png` |
+| `--image-size` | 生成分辨率（`1K` / `2K` / `4K`） | `2K` |
+| `--candidate-count` | 每个 block 请求的候选图数量（`1-4`），仅 `> 1` 时启用候选图选择 | `1` |
+| `--translation-seed` | 翻译随机种子，`random` 可关闭固定 seed | `7` |
+| `--image-seed` | 生图随机种子，`random` 可关闭固定 seed | `7` |
+| `--translation-temperature` | 翻译温度 | `0.1` |
+| `--translation-top-p` | 翻译 top-p | `0.2` |
+| `--webp-quality` | WebP 质量（`0-100`） | `95` |
 | `--max-workers` | 并发数 | `2` |
 | `--log-level` | 日志级别 | `INFO` |
 | `--version` | 打印版本号并退出 | — |
@@ -283,13 +292,19 @@ gcloud auth application-default set-quota-project YOUR_PROJECT_ID
 | `M2C_PROJECT_ID` | ✅ | — | GCP project ID |
 | `M2C_LOCATION` | | `us-central1` | Gemini 文本调用区域 |
 | `M2C_GEMINI_MODEL` | | `gemini-2.0-flash` | 文本模型 |
-| `M2C_IMAGE_MODEL` | | `gemini-3.1-flash-image-preview` | 图片模型 |
+| `M2C_IMAGE_MODEL` | | `gemini-2.5-flash-image` | 图片模型 |
 | `M2C_ASPECT_RATIO` | | `1:1` | 图片宽高比，支持 `1:1`/`4:3`/`3:4`/`16:9`/`9:16`/`2:3`/`3:2`/`4:5`/`5:4` |
+| `M2C_IMAGE_SIZE` | | `2K` | 生图分辨率，支持 `1K`/`2K`/`4K` |
+| `M2C_IMAGE_CANDIDATE_COUNT` | | `1` | 每个 block 请求的候选图数量（`1-4`）；仅 `> 1` 时启用候选图选择 |
+| `M2C_IMAGE_SEED` | | `7` | 图片生成 seed；可设为 `random`/`none` 关闭固定种子 |
 | `M2C_OUTPUT_DIR` | | `./output` | 输出目录 |
-| `M2C_OUTPUT_FORMAT` | | `webp` | 保存格式，`webp` 更省体积，`png` 保留内嵌 metadata |
-| `M2C_WEBP_QUALITY` | | `85` | WebP 保存质量，`0-100` |
+| `M2C_OUTPUT_FORMAT` | | `png` | 保存格式，默认先看 PNG 字形质量；`webp` 更省体积 |
+| `M2C_WEBP_QUALITY` | | `95` | WebP 保存质量，`0-100` |
 | `M2C_TEMPLATE` | | `chiikawa` | 风格模板 |
 | `M2C_TRANSLATION_MODE` | | `vertex` | 翻译模式，`fallback` 仅用于 `--dry-run` |
+| `M2C_TRANSLATION_TEMPERATURE` | | `0.1` | Mermaid → prompt 的温度 |
+| `M2C_TRANSLATION_TOP_P` | | `0.2` | Mermaid → prompt 的 top-p |
+| `M2C_TRANSLATION_SEED` | | `7` | 翻译 seed；可设为 `random`/`none` 关闭固定种子 |
 | `M2C_MAX_WORKERS` | | `2` | 并发数 |
 | `M2C_REQUEST_TIMEOUT` | | `600` | 请求超时（秒） |
 | `M2C_LOG_LEVEL` | | `INFO` | 日志级别 |
@@ -300,13 +315,12 @@ gcloud auth application-default set-quota-project YOUR_PROJECT_ID
 
 运行后，`output_dir` 下会有两类产物：
 
-- 顶层默认保留最终 WebP，以及兼容旧流程的 `*_FAILED.txt`
+- 顶层默认保留最终 PNG，以及兼容旧流程的 `*_FAILED.txt`
 - `output_dir/_runs/<run_id>/` 保存本次 run 的完整日志和排障归档
 
 ```text
 output/
-├── diagram_20260416_120000_00.webp
-├── diagram_20260416_120000_00.metadata.json
+├── diagram_20260416_120000_00.png
 ├── diagram_20260416_120010_01_FAILED.txt
 └── _runs/
     └── run_20260416T120000_123456Z/
@@ -320,8 +334,7 @@ output/
             │   ├── prompt.txt
             │   ├── translation-request.txt
             │   ├── translation-response.txt
-            │   ├── result.webp
-            │   ├── result.metadata.json
+            │   ├── result.png
             │   └── manifest.json
             └── block_01_line_0012_graph/
                 ├── mermaid.mmd
@@ -330,7 +343,7 @@ output/
                 └── manifest.json
 ```
 
-默认 `webp` 模式下，会把这些排障字段写到同名 sidecar `*.metadata.json`：
+默认 `png` 模式下，会把这些排障字段写进 PNG metadata text chunks：
 
 ```text
 mermaid_source   原始 Mermaid 代码
@@ -340,10 +353,14 @@ block_index      在文档中的位置
 diagram_type     图类型（graph / sequenceDiagram / ...）
 aspect_ratio     本次生成使用的宽高比
 image_model      图片模型
+image_size       生图分辨率
+image_candidate_count 本次请求的候选图数量
+image_seed       生图 seed
+translation_seed Mermaid→prompt 的 seed
 source_image_format Vertex 返回的原始格式
 ```
 
-如果使用 `--output-format png`，则继续把上述字段写进 PNG metadata text chunks，并且 `_runs/blocks/<block>/result.png` 也会跟随输出为 PNG。
+如果使用 `--output-format webp`，则改为写同名 sidecar `*.metadata.json`，并且 `_runs/blocks/<block>/result.webp` / `result.metadata.json` 会跟随输出。
 
 排障时优先看这些文件：
 

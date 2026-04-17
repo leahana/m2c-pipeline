@@ -23,6 +23,21 @@ VALID_ASPECT_RATIOS = (
 )
 VALID_TRANSLATION_MODES = ("vertex", "fallback")
 VALID_OUTPUT_FORMATS = ("png", "webp")
+VALID_IMAGE_SIZES = ("1K", "2K", "4K")
+
+
+def _parse_optional_int(raw_value: str | None, *, default: int | None = None) -> int | None:
+    """Parse optional integer values from env/CLI style strings.
+
+    Empty strings and marker values such as "none" / "random" disable the seed.
+    """
+    if raw_value is None:
+        return default
+
+    normalized = raw_value.strip().lower()
+    if not normalized or normalized in {"none", "off", "random", "unset"}:
+        return None
+    return int(raw_value)
 
 
 def _parse_dotenv_line(line: str) -> Optional[Tuple[str, str]]:
@@ -97,18 +112,24 @@ class VertexConfig:
     location: str = "us-central1"
     gemini_model: str = "gemini-2.0-flash"
     # Gemini native image generation model (uses google-genai SDK, location=global)
-    image_model: str = "gemini-3.1-flash-image-preview"
+    image_model: str = "gemini-2.5-flash-image"
 
     # === Image generation params ===
-    # Supported values for gemini-3.1-flash-image-preview / gemini-3-pro-image-preview:
+    # Supported values for Gemini image generation models:
     # "1:1","2:3","3:2","3:4","4:3","4:5","5:4","9:16","16:9","21:9"
     aspect_ratio: str = "1:1"
+    image_size: str = "2K"
+    image_candidate_count: int = 1
+    image_seed: int | None = 7
 
     # === Pipeline ===
     output_dir: str = "./output"
-    output_format: str = "webp"
-    webp_quality: int = 85
+    output_format: str = "png"
+    webp_quality: int = 95
     template_name: str = "chiikawa"
+    translation_temperature: float = 0.1
+    translation_top_p: float = 0.2
+    translation_seed: int | None = 7
 
     # === Concurrency ===
     # max_workers=2 is conservative: image gen takes 45-200s and is quota-sensitive
@@ -133,12 +154,23 @@ class VertexConfig:
             project_id=os.environ.get("M2C_PROJECT_ID", ""),
             location=os.environ.get("M2C_LOCATION", "us-central1"),
             gemini_model=os.environ.get("M2C_GEMINI_MODEL", "gemini-2.0-flash"),
-            image_model=os.environ.get("M2C_IMAGE_MODEL", "gemini-3.1-flash-image-preview"),
+            image_model=os.environ.get("M2C_IMAGE_MODEL", "gemini-2.5-flash-image"),
             aspect_ratio=os.environ.get("M2C_ASPECT_RATIO", "1:1"),
+            image_size=os.environ.get("M2C_IMAGE_SIZE", "2K"),
+            image_candidate_count=int(os.environ.get("M2C_IMAGE_CANDIDATE_COUNT", "1")),
+            image_seed=_parse_optional_int(os.environ.get("M2C_IMAGE_SEED"), default=7),
             output_dir=os.environ.get("M2C_OUTPUT_DIR", "./output"),
-            output_format=os.environ.get("M2C_OUTPUT_FORMAT", "webp"),
-            webp_quality=int(os.environ.get("M2C_WEBP_QUALITY", "85")),
+            output_format=os.environ.get("M2C_OUTPUT_FORMAT", "png"),
+            webp_quality=int(os.environ.get("M2C_WEBP_QUALITY", "95")),
             template_name=os.environ.get("M2C_TEMPLATE", "chiikawa"),
+            translation_temperature=float(
+                os.environ.get("M2C_TRANSLATION_TEMPERATURE", "0.1")
+            ),
+            translation_top_p=float(os.environ.get("M2C_TRANSLATION_TOP_P", "0.2")),
+            translation_seed=_parse_optional_int(
+                os.environ.get("M2C_TRANSLATION_SEED"),
+                default=7,
+            ),
             max_workers=int(os.environ.get("M2C_MAX_WORKERS", "2")),
             request_timeout=int(os.environ.get("M2C_REQUEST_TIMEOUT", "600")),
             max_retries=int(os.environ.get("M2C_MAX_RETRIES", "5")),
@@ -169,15 +201,35 @@ class VertexConfig:
                 f"Invalid translation_mode '{self.translation_mode}'. "
                 f"Must be one of: {sorted(VALID_TRANSLATION_MODES)}"
             )
+        if self.image_size not in VALID_IMAGE_SIZES:
+            raise ValueError(
+                f"Invalid image_size '{self.image_size}'. "
+                f"Must be one of: {sorted(VALID_IMAGE_SIZES)}"
+            )
         if self.output_format not in VALID_OUTPUT_FORMATS:
             raise ValueError(
                 f"Invalid output_format '{self.output_format}'. "
                 f"Must be one of: {sorted(VALID_OUTPUT_FORMATS)}"
             )
+        if not 1 <= self.image_candidate_count <= 4:
+            raise ValueError(
+                f"Invalid image_candidate_count '{self.image_candidate_count}'. "
+                "Must be between 1 and 4."
+            )
         if not 0 <= self.webp_quality <= 100:
             raise ValueError(
                 f"Invalid webp_quality '{self.webp_quality}'. "
                 "Must be between 0 and 100."
+            )
+        if not 0.0 <= self.translation_temperature <= 2.0:
+            raise ValueError(
+                f"Invalid translation_temperature '{self.translation_temperature}'. "
+                "Must be between 0.0 and 2.0."
+            )
+        if not 0.0 <= self.translation_top_p <= 1.0:
+            raise ValueError(
+                f"Invalid translation_top_p '{self.translation_top_p}'. "
+                "Must be between 0.0 and 1.0."
             )
         if self.translation_mode == "fallback":
             if not dry_run:

@@ -1,6 +1,6 @@
 import builtins
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from m2c_pipeline.config import VertexConfig
 from m2c_pipeline.extractor import MermaidBlock
@@ -69,6 +69,24 @@ class MermaidTranslatorTests(unittest.TestCase):
         ):
             with self.assertRaises(ImportError):
                 translator.translate(self.block)
+
+    def test_vertex_call_uses_low_randomness_and_fixed_seed(self) -> None:
+        translator = self.make_translator()
+        fake_response = Mock(text="ASPECT_RATIO: 1:1\ntranslated prompt")
+        fake_client = Mock()
+        fake_client.models.generate_content.return_value = fake_response
+
+        with patch.object(MermaidTranslator, "_get_client", return_value=fake_client):
+            response_text = translator._call_gemini("translate this")
+
+        self.assertEqual(response_text, "ASPECT_RATIO: 1:1\ntranslated prompt")
+        call = fake_client.models.generate_content.call_args
+        self.assertEqual(call.kwargs["model"], "gemini-2.0-flash")
+        self.assertEqual(call.kwargs["contents"], "translate this")
+        config = call.kwargs["config"]
+        self.assertEqual(config.temperature, 0.1)
+        self.assertEqual(config.top_p, 0.2)
+        self.assertEqual(config.seed, 7)
 
     def test_simple_linear_three_node_graph_is_classified(self) -> None:
         translator = self.make_translator()
@@ -205,6 +223,9 @@ class ChiikawaTemplateTests(unittest.TestCase):
             "MAIN CONTENT MUST have exactly 3 major sections",
             instruction,
         )
+        self.assertIn("Render only pure Chinese text", instruction)
+        self.assertIn("Do NOT render dialogue", instruction)
+        self.assertIn("1–4 Chinese characters", instruction)
 
     def test_fallback_prompt_contains_no_old_japanese_terms(self) -> None:
         prompt = self.template.build_prompt(
@@ -222,3 +243,5 @@ class ChiikawaTemplateTests(unittest.TestCase):
         self.assertNotIn("ナガノ", prompt)
         self.assertIn("exactly three distinct main characters", prompt)
         self.assertIn("Keep each character visually distinct", prompt)
+        self.assertIn("one short Chinese title", prompt)
+        self.assertIn("one to four Chinese characters", prompt)

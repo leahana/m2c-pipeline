@@ -288,8 +288,15 @@ class BlockArtifacts:
             "config": {
                 "translation_mode": self._run_artifacts._config.translation_mode,
                 "gemini_model": self._run_artifacts._config.gemini_model,
+                "translation_temperature": self._run_artifacts._config.translation_temperature,
+                "translation_top_p": self._run_artifacts._config.translation_top_p,
+                "translation_seed": self._run_artifacts._config.translation_seed,
                 "image_model": self._run_artifacts._config.image_model,
+                "image_size": self._run_artifacts._config.image_size,
+                "image_candidate_count": self._run_artifacts._config.image_candidate_count,
+                "image_seed": self._run_artifacts._config.image_seed,
                 "aspect_ratio": self._run_artifacts._config.aspect_ratio,
+                "output_format": self._run_artifacts._config.output_format,
                 "template_name": self._run_artifacts._config.template_name,
                 "max_workers": self._run_artifacts._config.max_workers,
             },
@@ -306,15 +313,31 @@ class BlockArtifacts:
                 "retry_count": 0,
                 "attempt_count": 0,
                 "retry_events": [],
+                "temperature": self._run_artifacts._config.translation_temperature,
+                "top_p": self._run_artifacts._config.translation_top_p,
+                "seed": self._run_artifacts._config.translation_seed,
             },
             "paint": {
                 "status": "pending" if not self._run_artifacts._dry_run else "skipped",
                 "model": self._run_artifacts._config.image_model
                 if not self._run_artifacts._dry_run
                 else None,
+                "image_size": self._run_artifacts._config.image_size
+                if not self._run_artifacts._dry_run
+                else None,
+                "candidate_count_requested": self._run_artifacts._config.image_candidate_count
+                if not self._run_artifacts._dry_run
+                else None,
+                "seed": self._run_artifacts._config.image_seed
+                if not self._run_artifacts._dry_run
+                else None,
                 "retry_count": 0,
                 "attempt_count": 0,
                 "retry_events": [],
+                "candidate_image_count": None,
+                "selected_candidate_index": None,
+                "selection_method": None,
+                "selector_seed": None,
                 "result_bytes": None,
             },
             "output": {
@@ -372,6 +395,9 @@ class BlockArtifacts:
             "retry_count": len(retry_events),
             "attempt_count": len(retry_events) + 1,
             "retry_events": retry_events,
+            "temperature": self._run_artifacts._config.translation_temperature,
+            "top_p": self._run_artifacts._config.translation_top_p,
+            "seed": self._run_artifacts._config.translation_seed,
         }
         self._write_manifest()
 
@@ -391,9 +417,16 @@ class BlockArtifacts:
         self._manifest["paint"] = {
             "status": "succeeded",
             "model": self._run_artifacts._config.image_model,
+            "image_size": self._run_artifacts._config.image_size,
+            "candidate_count_requested": self._run_artifacts._config.image_candidate_count,
+            "seed": self._run_artifacts._config.image_seed,
             "retry_count": len(retry_events),
             "attempt_count": len(retry_events) + 1,
             "retry_events": retry_events,
+            "candidate_image_count": diagnostics.get("candidate_image_count"),
+            "selected_candidate_index": diagnostics.get("selected_candidate_index"),
+            "selection_method": diagnostics.get("selection_method"),
+            "selector_seed": diagnostics.get("selector_seed"),
             "result_bytes": image_byte_count,
         }
         self._write_manifest()
@@ -411,9 +444,16 @@ class BlockArtifacts:
         self._manifest["paint"] = {
             "status": "failed",
             "model": self._run_artifacts._config.image_model,
+            "image_size": self._run_artifacts._config.image_size,
+            "candidate_count_requested": self._run_artifacts._config.image_candidate_count,
+            "seed": self._run_artifacts._config.image_seed,
             "retry_count": len(retry_events),
             "attempt_count": len(retry_events) + 1 if diagnostics else 1,
             "retry_events": retry_events,
+            "candidate_image_count": diagnostics.get("candidate_image_count"),
+            "selected_candidate_index": diagnostics.get("selected_candidate_index"),
+            "selection_method": diagnostics.get("selection_method"),
+            "selector_seed": diagnostics.get("selector_seed"),
             "result_bytes": None,
         }
         self._manifest["failure"] = {
