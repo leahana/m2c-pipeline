@@ -11,4 +11,4 @@ Pillow>=10.0.0
 tenacity>=8.2.0
 
 # Progress bar for concurrent block processing
-tqdm>=4.66.0
+tqdm>=4.67.3
