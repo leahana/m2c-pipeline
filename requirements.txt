@@ -5,7 +5,7 @@
 google-genai>=1.0.0
 
 # PNG processing and metadata writing
-Pillow>=10.0.0
+Pillow>=12.2.0
 
 # Retry with exponential backoff
 tenacity>=8.2.0
