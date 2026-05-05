@@ -2,7 +2,7 @@
 # Install via: pip install -r requirements.txt
 
 # Gemini text translation + native image generation on Vertex AI backend
-google-genai>=1.0.0
+google-genai>=1.75.0
 
 # PNG processing and metadata writing
 Pillow>=10.0.0
