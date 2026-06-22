@@ -15,14 +15,14 @@ jobs:
     name: policy-pr-head
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - run: python3 scripts/ci/check_pr_head.py
 
   skill-spec:
     name: skill-spec
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - run: python3 scripts/ci/check_skill_spec.py
       - run: python3 scripts/ci/check_cc_switch_remote_contract.py
 
@@ -30,14 +30,14 @@ jobs:
     name: repo-policy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - run: python3 scripts/ci/check_repo_policy.py
 
   unit-tests:
     name: unit-tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - run: python3 -m pip install -r requirements.txt
       - run: python3 -m unittest discover -s tests -p "test_*.py"
 
@@ -45,7 +45,7 @@ jobs:
     name: offline-smoke
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - run: python3 -m pip install -r requirements.txt
       - run: python3 -m m2c_pipeline fixtures/minimal-input.md --dry-run --translation-mode fallback
 
@@ -53,7 +53,7 @@ jobs:
     name: skill-bootstrap-smoke
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - run: |
           STAGE_DIR="$(mktemp -d "$RUNNER_TEMP/m2c-skill-stage-XXXXXX")"
           python3 scripts/ci/publish_skill_branch.py --stage-dir "$STAGE_DIR"
@@ -67,19 +67,19 @@ jobs:
     name: package-dryrun
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - run: python3 scripts/ci/package_generic.py --output-dir dist
 
   published-artifact-isomorphism:
     name: published-artifact-isomorphism
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - run: python3 scripts/ci/check_published_artifact_isomorphism.py
 
   required-job-contract:
     name: required-job-contract
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - run: python3 scripts/ci/check_required_job_contract.py

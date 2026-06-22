@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - run: python3 scripts/ci/governance_audit.py --mode sync-branch-protection
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_ADMIN_AUDIT_TOKEN }}
@@ -26,7 +26,7 @@ jobs:
     name: branch-protection-audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - run: python3 scripts/ci/governance_audit.py --mode branch-protection
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_ADMIN_AUDIT_TOKEN }}
@@ -35,7 +35,7 @@ jobs:
     name: tag-ruleset-audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - run: python3 scripts/ci/governance_audit.py --mode tag-ruleset
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_ADMIN_AUDIT_TOKEN }}
@@ -44,7 +44,7 @@ jobs:
     name: skill-branch-ruleset-audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
       - run: python3 scripts/ci/governance_audit.py --mode skill-branch-ruleset
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_ADMIN_AUDIT_TOKEN }}
